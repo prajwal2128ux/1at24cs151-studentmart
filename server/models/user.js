@@ -1,13 +1,8 @@
+
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
     usn: {
       type: String,
       required: true,
@@ -15,7 +10,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
-
+    name: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     email: {
       type: String,
       required: true,
@@ -23,45 +22,38 @@ const userSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
-
+    password: {
+      type: String,
+      required: true,
+    },
     phone: {
       type: String,
       default: "",
       trim: true,
     },
-
     college: {
       type: String,
       default: "",
       trim: true,
     },
-
     course: {
       type: String,
       default: "",
       trim: true,
     },
-
     semester: {
       type: String,
       default: "",
       trim: true,
     },
-
     year: {
       type: String,
       default: "",
       trim: true,
     },
-
     dateOfBirth: {
       type: String,
       default: "",
-    },
-
-    password: {
-      type: String,
-      required: true,
     },
   },
   {

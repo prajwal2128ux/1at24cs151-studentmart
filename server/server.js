@@ -1,53 +1,42 @@
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const dotenv = require("dotenv");
-
-dotenv.config();
+require("dotenv").config();
 
 const app = express();
-
-const PORT = 5000;
 
 app.use(cors());
 app.use(express.json());
 
+// Health check
 app.get("/", (req, res) => {
-  res.json({
-    message: "StudentMart API is running",
-  });
+  res.json({ message: "StudentMart API is running" });
 });
 
-app.use(
-  "/api/auth",
-  require("./routes/auth")
-);
+// Authentication routes
+app.use("/api/auth", require("./routes/authRoutes"));
+
+const PORT = process.env.PORT || 5002;
 
 async function startServer() {
   try {
-    await mongoose.connect(
-      process.env.MONGO_URI
-    );
+    if (!process.env.MONGO_URI) {
+      throw new Error("MONGO_URI is missing from server/.env");
+    }
 
-    console.log(
-      "MongoDB connected successfully"
-    );
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is missing from server/.env");
+    }
 
-    app.listen(
-      PORT,
-      "127.0.0.1",
-      () => {
-        console.log(
-          `StudentMart server running at http://127.0.0.1:${PORT}`
-        );
-      }
-    );
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB connected");
+
+    app.listen(PORT, () => {
+      console.log(`Server running at http://localhost:${PORT}`);
+    });
   } catch (error) {
-    console.error(
-      "MongoDB connection failed:"
-    );
-
-    console.error(error);
+    console.error("Backend startup failed:", error.message);
   }
 }
 
