@@ -1,95 +1,147 @@
+
 import { useState } from "react";
+import { API_BASE_URL } from "../config";
 
 function Register() {
+  const [form, setForm] = useState({
+    usn: "",
+    name: "",
+    email: "",
+    password: "",
+  });
 
-    const [name, setName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("");
+  const [loading, setLoading] = useState(false);
 
-    const [message, setMessage] = useState("");
+  function handleChange(e) {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  }
 
-    const handleRegister = async (e) => {
+  async function handleRegister(e) {
+    e.preventDefault();
+    setMessage("");
+    setMessageType("");
+    setLoading(true);
 
-        e.preventDefault();
-
-        try {
-            const response = await fetch(
-                "http://localhost:5002/api/auth/register",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        name,
-                        email,
-                        password
-                    })
-                }
-            );
-            const data = await response.json();
-            setMessage(data.message);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/auth/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(form),
         }
-        catch (error) {
+      );
 
-            console.error(error);
-            setMessage("Something went wrong");
-        }
-    };
+      const contentType = response.headers.get("content-type");
+      const data =
+        contentType && contentType.includes("application/json")
+          ? await response.json()
+          : {};
 
-    return (
-       <div>
-            <h2>Create Account</h2>
+      if (!response.ok) {
+        throw new Error(data.message || "Registration failed. Server returned an error.");
+      }
 
-            <form onSubmit={handleRegister}>
+      setMessage(data.message || "Registration successful. You can log in now.");
+      setMessageType("success");
 
-                <div>
-                    <label>Name</label>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={(e) =>
-                            setName(e.target.value)
-                        }
-                        placeholder="Enter your name"
-                    />
-                </div>
+      setForm({
+        usn: "",
+        name: "",
+        email: "",
+        password: "",
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      setMessage(
+        error.message || "Unable to connect to the server."
+      );
+      setMessageType("error");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-                <div>
-                    <label>Email</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) =>
-                            setEmail(e.target.value)
-                        }
-                        placeholder="Enter your email"
-                    />
-                </div>
+  return (
+    <div>
+      <h2>Create Account</h2>
+      <p className="auth-description">
+        Create your StudentMart student account.
+      </p>
 
-                <div>
-                    <label>Password</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) =>
-                            setPassword(e.target.value)
-                        }
-                        placeholder="Enter your password"
-                    />
-
-                </div>
-                <button type="submit">
-                    Register
-                </button>
-            </form>
-
-            {message && (
-                <p>{message}</p>
-            )}
+      <form onSubmit={handleRegister}>
+        <div>
+          <label htmlFor="register-usn">Student USN</label>
+          <input
+            id="register-usn"
+            name="usn"
+            type="text"
+            value={form.usn}
+            onChange={handleChange}
+            placeholder="Enter your USN"
+            required
+          />
         </div>
-    );
+
+        <div>
+          <label htmlFor="register-name">Name</label>
+          <input
+            id="register-name"
+            name="name"
+            type="text"
+            value={form.name}
+            onChange={handleChange}
+            placeholder="Enter your name"
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="register-email">Email</label>
+          <input
+            id="register-email"
+            name="email"
+            type="email"
+            value={form.email}
+            onChange={handleChange}
+            placeholder="Enter your email"
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="register-password">Password</label>
+          <input
+            id="register-password"
+            name="password"
+            type="password"
+            value={form.password}
+            onChange={handleChange}
+            placeholder="At least 6 characters"
+            minLength={6}
+            required
+          />
+        </div>
+
+        <button type="submit" disabled={loading}>
+          {loading ? "Registering..." : "Register"}
+        </button>
+      </form>
+
+      {message && (
+        <p className={`auth-message ${messageType}`} role="status">
+          {message}
+        </p>
+      )}
+    </div>
+  );
 }
+
 export default Register;
-
-

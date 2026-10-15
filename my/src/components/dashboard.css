@@ -1,0 +1,554 @@
+
+/* =========================================
+   STUDENTMART DASHBOARD
+   Matching the login page purple theme
+========================================= */
+
+.dashboard-page {
+  min-height: 100vh;
+  background: #f7f8fd;
+  color: #111a32;
+  font-family: Inter, Arial, sans-serif;
+}
+
+/* Navigation */
+
+.dashboard-page .top-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 82px;
+  padding: 16px 6%;
+  background: #ffffff;
+  border-bottom: 1px solid #e8eaf3;
+  box-sizing: border-box;
+}
+
+.dashboard-page .nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.dashboard-page .nav-logo {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #302e94, #7135e9);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.dashboard-page .nav-brand h2 {
+  margin: 0;
+  color: #141a32;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.dashboard-page .nav-brand span {
+  display: block;
+  margin-top: 5px;
+  color: #8188a0;
+  font-size: 12px;
+}
+
+.dashboard-page .nav-links {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.dashboard-page .nav-item {
+  color: #626a82;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.dashboard-page .nav-item:hover,
+.dashboard-page .nav-item.active {
+  color: #5836dc;
+}
+
+.dashboard-page .nav-logout {
+  padding: 12px 21px;
+  border: 1px solid #d9dced;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #171d35;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dashboard-page .nav-logout:hover {
+  border-color: #6840e5;
+  background: #f4f0ff;
+  color: #5836dc;
+}
+
+/* Main layout */
+
+.dashboard-page .dashboard-main {
+  width: 90%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 48px 0 70px;
+  box-sizing: border-box;
+}
+
+/* Welcome header */
+
+.dashboard-page .dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 35px;
+  margin-bottom: 38px;
+}
+
+.dashboard-page .dashboard-label {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: #5938dd;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2.2px;
+}
+
+.dashboard-page .dashboard-header h1 {
+  margin: 0;
+  color: #151b34;
+  font-size: clamp(34px, 3.2vw, 46px);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+}
+
+.dashboard-page .dashboard-header > div > p {
+  margin: 13px 0 0;
+  color: #7b8299;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* Profile shortcut */
+
+.dashboard-page .profile-corner {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 370px;
+  max-width: 100%;
+  padding: 19px;
+  box-sizing: border-box;
+  border: 1px solid #e8e7f3;
+  border-radius: 17px;
+  background: #ffffff;
+  box-shadow: 0 10px 35px rgba(43, 34, 100, 0.07);
+  color: #171d35;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dashboard-page .profile-corner:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(67, 46, 150, 0.12);
+}
+
+.dashboard-page .profile-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eeebff, #e1e5ff);
+  color: #5836dc;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.dashboard-page .profile-corner-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.dashboard-page .profile-corner-info strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.dashboard-page .profile-corner-info span {
+  color: #5938dd;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dashboard-page .profile-arrow {
+  color: #5938dd;
+  font-size: 25px;
+}
+
+/* Dashboard content columns */
+
+.dashboard-page .dashboard-content-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 25px;
+  margin-bottom: 28px;
+}
+
+/* Purple welcome card */
+
+.dashboard-page .main-dashboard-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 365px;
+  padding: 42px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: none;
+  border-radius: 23px;
+  background: linear-gradient(135deg, #292c88 0%, #4931bd 48%, #7730e8 100%);
+  color: #ffffff;
+  box-shadow: 0 18px 45px rgba(75, 47, 190, 0.17);
+}
+
+.dashboard-page .main-dashboard-card::before,
+.dashboard-page .main-dashboard-card::after {
+  position: absolute;
+  content: "";
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.dashboard-page .main-dashboard-card::before {
+  top: -100px;
+  right: -65px;
+  width: 240px;
+  height: 240px;
+}
+
+.dashboard-page .main-dashboard-card::after {
+  right: 25px;
+  bottom: -155px;
+  width: 270px;
+  height: 270px;
+}
+
+.dashboard-page .main-dashboard-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-page .main-dashboard-card .dashboard-label {
+  color: #c9c4ff;
+}
+
+.dashboard-page .main-dashboard-card h2 {
+  max-width: 440px;
+  margin: 0 0 17px;
+  color: #ffffff;
+  font-size: clamp(27px, 2.5vw, 35px);
+  font-weight: 800;
+  letter-spacing: -0.8px;
+}
+
+.dashboard-page .main-dashboard-card p {
+  max-width: 470px;
+  margin: 0 0 28px;
+  color: #e5e2ff;
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.dashboard-page .dashboard-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 47px;
+  padding: 0 23px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 11px;
+  background: #ffffff;
+  color: #4f32c7;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.dashboard-page .dashboard-action:hover {
+  transform: translateY(-2px);
+  background: #f0edff;
+}
+
+/* Account information cards */
+
+.dashboard-page .dashboard-info-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 17px;
+}
+
+.dashboard-page .info-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 27px 29px;
+  box-sizing: border-box;
+  border: 1px solid #e8eaf2;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 9px 28px rgba(30, 35, 80, 0.035);
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.dashboard-page .info-card:hover {
+  transform: translateY(-2px);
+  border-color: #d7ceff;
+}
+
+.dashboard-page .info-card > span,
+.dashboard-page .overview-grid > div > span {
+  margin-bottom: 12px;
+  color: #8389a0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+}
+
+.dashboard-page .info-card h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #171d35;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.dashboard-page .info-card h3.email-value {
+  font-size: 17px;
+}
+
+.dashboard-page .info-card p {
+  margin: 10px 0 0;
+  color: #858ca0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Profile details */
+
+.dashboard-page .account-overview {
+  padding: 33px;
+  border: 1px solid #e8eaf2;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 10px 35px rgba(30, 35, 80, 0.035);
+}
+
+.dashboard-page .overview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 25px;
+  border-bottom: 1px solid #eceef5;
+}
+
+.dashboard-page .overview-heading .dashboard-label {
+  margin-bottom: 10px;
+}
+
+.dashboard-page .overview-heading h2 {
+  margin: 0;
+  color: #171d35;
+  font-size: 27px;
+  font-weight: 800;
+}
+
+.dashboard-page .overview-edit {
+  padding: 10px 17px;
+  border-radius: 9px;
+  background: #f1edff;
+  color: #5938dd;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.dashboard-page .overview-edit:hover {
+  background: #e4dcff;
+}
+
+.dashboard-page .overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 35px;
+  padding-top: 27px;
+}
+
+.dashboard-page .overview-grid > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dashboard-page .overview-grid > div > span {
+  margin-bottom: 10px;
+}
+
+.dashboard-page .overview-grid strong {
+  overflow-wrap: anywhere;
+  color: #202640;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Loading screen */
+
+.dashboard-loading {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  background: #f7f8fd;
+}
+
+.dashboard-loading .loading-box {
+  padding: 30px 40px;
+  border: 1px solid #e8e7f3;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #5938dd;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Tablet */
+
+@media (max-width: 900px) {
+  .dashboard-page .dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-page .profile-corner {
+    width: 100%;
+  }
+
+  .dashboard-page .dashboard-content-area {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page .main-dashboard-card {
+    min-height: 300px;
+  }
+
+  .dashboard-page .dashboard-info-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-page .info-card {
+    padding: 20px;
+  }
+
+  .dashboard-page .info-card h3 {
+    font-size: 17px;
+  }
+
+  .dashboard-page .info-card h3.email-value {
+    font-size: 14px;
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 560px) {
+  .dashboard-page .top-navbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 17px;
+    padding: 17px 5%;
+  }
+
+  .dashboard-page .nav-links {
+    width: 100%;
+    justify-content: space-between;
+    gap: 9px;
+  }
+
+  .dashboard-page .nav-item {
+    font-size: 13px;
+  }
+
+  .dashboard-page .nav-logout {
+    padding: 10px 13px;
+    font-size: 12px;
+  }
+
+  .dashboard-page .dashboard-main {
+    width: 90%;
+    padding-top: 32px;
+  }
+
+  .dashboard-page .dashboard-header h1 {
+    font-size: 33px;
+  }
+
+  .dashboard-page .dashboard-header > div > p {
+    font-size: 14px;
+  }
+
+  .dashboard-page .main-dashboard-card {
+    min-height: 300px;
+    padding: 27px;
+  }
+
+  .dashboard-page .main-dashboard-card h2 {
+    font-size: 28px;
+  }
+
+  .dashboard-page .main-dashboard-card p {
+    font-size: 14px;
+  }
+
+  .dashboard-page .dashboard-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page .info-card {
+    padding: 23px;
+  }
+
+  .dashboard-page .account-overview {
+    padding: 23px;
+  }
+
+  .dashboard-page .overview-heading h2 {
+    font-size: 22px;
+  }
+
+  .dashboard-page .overview-grid {
+    grid-template-columns: 1fr;
+    gap: 23px;
+  }
+}

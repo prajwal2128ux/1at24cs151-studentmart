@@ -1,3 +1,4 @@
+import "./dashboard.css";
 import { useEffect, useState } from "react";
 import {
   Link,

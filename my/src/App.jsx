@@ -1,12 +1,21 @@
 
-import './App.css';
-import Register from './components/Register';
-import Login from './components/login';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 
-function App() {
+import "./App.css";
+
+import Register from "./components/Register";
+import Login from "./components/login";
+import Dashboard from "./components/dashboard";
+import Profile from "./components/profile";
+
+function AuthPage() {
   return (
     <main className="studentmart-page">
-      {/* Left welcome panel */}
       <section className="welcome-panel">
         <div className="welcome-content">
           <h1>
@@ -23,7 +32,6 @@ function App() {
 
             <div className="market-card">
               <div className="market-icon">🛍️</div>
-
               <h2>Everything students need.</h2>
 
               <p>
@@ -45,7 +53,6 @@ function App() {
         </div>
       </section>
 
-      {/* Right forms panel */}
       <section className="forms-panel">
         <div className="forms-heading">
           <span className="eyebrow">
@@ -74,6 +81,24 @@ function App() {
         </p>
       </section>
     </main>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<AuthPage />} />
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<Profile />} />
+
+        <Route
+          path="*"
+          element={<Navigate to="/" replace />}
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
