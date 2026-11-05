@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 // Authentication routes
 app.use("/api/auth", require("./routes/authRoutes"));
 
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {

@@ -1,0 +1,24 @@
+{
+  "name": "node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prajwal2128ux/1at24cs151-studentmart.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/prajwal2128ux/1at24cs151-studentmart/issues"
+  },
+  "homepage": "https://github.com/prajwal2128ux/1at24cs151-studentmart#readme",
+  "dependencies": {
+    "cypress": "^16.2.1"
+  }
+}

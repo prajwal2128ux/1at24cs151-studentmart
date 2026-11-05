@@ -42,6 +42,18 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    department: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    address: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     course: {
       type: String,
       default: "",
