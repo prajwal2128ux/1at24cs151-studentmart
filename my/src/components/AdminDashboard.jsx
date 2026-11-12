@@ -186,6 +186,10 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem("studentmartToken");
+      if (!token) {
+        throw new Error("Admin session not found. Please log in again.");
+      }
+
       const res = await fetch(`${API_BASE_URL}/products`, {
         method: "POST",
         headers: {
@@ -195,13 +199,37 @@ export default function AdminDashboard() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      // Safe JSON parsing: check content-type first to prevent SyntaxError on HTML errors
+      let data = {};
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const rawText = await res.text();
+        console.error("Non-JSON API response from server:", res.status, rawText);
+        if (!res.ok) {
+          if (res.status === 413) {
+            throw new Error("Uploaded image is too large. Please select an image under 10MB or use an image URL.");
+          }
+          if (res.status === 401) {
+            throw new Error("Admin session expired. Please log in again.");
+          }
+          if (res.status === 403) {
+            throw new Error("Access denied. Admin privileges required.");
+          }
+          if (res.status === 404) {
+            throw new Error("Cannot reach backend API (404). Please ensure backend server is running on port 5000.");
+          }
+          throw new Error(`Server returned HTTP ${res.status}: ${res.statusText || "Unexpected response"}`);
+        }
+      }
+
       if (!res.ok) {
         throw new Error(data.message || "Failed to publish product.");
       }
 
       const saved = data.product || { ...payload, id: Date.now().toString() };
-      const updated = [saved, ...products];
+      const updated = [saved, ...products.filter((p) => (p.id || p._id) !== (saved.id || saved._id))];
       setProducts(updated);
       localStorage.setItem("studentmartProducts", JSON.stringify(updated));
 
@@ -221,6 +249,7 @@ export default function AdminDashboard() {
 
       setActiveTab("manage-products");
     } catch (err) {
+      console.error("Add Product error:", err);
       setAlertMessage({ type: "error", text: err.message || "Unable to add product." });
     }
   };
@@ -248,7 +277,18 @@ export default function AdminDashboard() {
         }),
       });
 
-      const data = await res.json();
+      let data = {};
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const rawText = await res.text();
+        console.error("Non-JSON API response from server:", res.status, rawText);
+        if (!res.ok) {
+          throw new Error(`Server returned HTTP ${res.status}: ${res.statusText || "Unable to update product"}`);
+        }
+      }
+
       if (!res.ok) {
         throw new Error(data.message || "Failed to update product.");
       }

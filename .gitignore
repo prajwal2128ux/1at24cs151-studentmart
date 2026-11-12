@@ -7,6 +7,10 @@ dist/
 dist-ssr/
 build/
 
+# Uploads
+server/uploads/*
+!server/uploads/.gitkeep
+
 # Logs
 *.log
 npm-debug.log*
@@ -17,4 +21,3 @@ yarn-debug.log*
 Thumbs.db
 .vscode/
 .idea/
-

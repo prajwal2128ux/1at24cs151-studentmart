@@ -376,7 +376,30 @@ export default function Dashboard({ role: propRole, initialTab = "profile" }) {
         body: JSON.stringify(itemPayload),
       });
 
-      const data = await res.json();
+      let data = {};
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const rawText = await res.text();
+        console.error("Non-JSON API response:", res.status, rawText);
+        if (!res.ok) {
+          if (res.status === 413) {
+            throw new Error("Uploaded image is too large. Please use an image file under 10MB or paste an image URL.");
+          }
+          if (res.status === 401) {
+            throw new Error("Admin session expired. Please log in again.");
+          }
+          if (res.status === 403) {
+            throw new Error("Access denied. Admin privileges required.");
+          }
+          if (res.status === 404) {
+            throw new Error("Cannot reach backend API (404). Please ensure backend server is running on port 5000.");
+          }
+          throw new Error(`Server returned HTTP ${res.status}: ${res.statusText || "Unexpected response"}`);
+        }
+      }
+
       if (!res.ok) {
         throw new Error(data.message || "Failed to publish product.");
       }

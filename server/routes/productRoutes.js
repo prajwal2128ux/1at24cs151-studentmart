@@ -1,8 +1,48 @@
 const express = require("express");
+const path = require("path");
+const multer = require("multer");
 const Product = require("../models/product");
 const { authenticate, isAdmin } = require("../middleware/auth");
 
 const router = express.Router();
+
+// Configure Multer for disk storage of uploaded product images
+const uploadsDir = path.join(__dirname, "../uploads");
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname) || ".jpg";
+    cb(null, `prod_${Date.now()}_${Math.round(Math.random() * 1e9)}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: (req, file, cb) => {
+    if (!file || file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files (PNG, JPG, JPEG, WEBP) are allowed."));
+    }
+  },
+});
+
+// Middleware that handles optional file upload without crashing if multipart is not sent
+const optionalUpload = (req, res, next) => {
+  const contentType = req.headers["content-type"] || "";
+  if (contentType.includes("multipart/form-data")) {
+    return upload.single("imageFile")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      next();
+    });
+  }
+  next();
+};
 
 const defaultSeedProducts = [
   {
@@ -60,8 +100,7 @@ function formatProduct(p) {
 
 /* =========================================
    GET ALL PRODUCTS
-   GET /api/products
-   Public for both Admin and Customer view
+   GET /api/products or GET /api/admin/products
    ========================================= */
 router.get("/", async (req, res) => {
   try {
@@ -86,16 +125,27 @@ router.get("/", async (req, res) => {
 
 /* =========================================
    CREATE PRODUCT (ADMIN ONLY)
-   POST /api/products
+   POST /api/products or POST /api/admin/products
+   Supports:
+   - JSON with Base64 data URI
+   - JSON with image web URL
+   - Multipart FormData with imageFile
    ========================================= */
-router.post("/", authenticate, isAdmin, async (req, res) => {
+router.post("/", authenticate, isAdmin, optionalUpload, async (req, res) => {
   try {
     const title = (req.body.title || req.body.name || "").trim();
     const rawPrice = req.body.price;
     const stock = req.body.stock !== undefined && !isNaN(Number(req.body.stock)) ? Number(req.body.stock) : 20;
     const category = (req.body.category || "Books").trim();
     const desc = (req.body.desc || req.body.description || "").trim();
-    const image = (req.body.image || "").trim();
+
+    // Resolve image from file upload or string/URL
+    let image = "";
+    if (req.file) {
+      image = `/uploads/${req.file.filename}`;
+    } else if (req.body.image) {
+      image = req.body.image.trim();
+    }
 
     if (!title) {
       return res.status(400).json({
@@ -149,14 +199,20 @@ router.post("/", authenticate, isAdmin, async (req, res) => {
    UPDATE PRODUCT (ADMIN ONLY)
    PUT /api/products/:id
    ========================================= */
-router.put("/:id", authenticate, isAdmin, async (req, res) => {
+router.put("/:id", authenticate, isAdmin, optionalUpload, async (req, res) => {
   try {
     const title = req.body.title || req.body.name;
     const rawPrice = req.body.price;
     const stock = req.body.stock;
     const category = req.body.category;
     const desc = req.body.desc !== undefined ? req.body.desc : req.body.description;
-    const image = req.body.image;
+
+    let image = undefined;
+    if (req.file) {
+      image = `/uploads/${req.file.filename}`;
+    } else if (req.body.image !== undefined) {
+      image = req.body.image.trim();
+    }
 
     const updates = {};
     if (title !== undefined) updates.title = title.trim();
@@ -164,7 +220,7 @@ router.put("/:id", authenticate, isAdmin, async (req, res) => {
     if (stock !== undefined && !isNaN(Number(stock))) updates.stock = Number(stock);
     if (category !== undefined) updates.category = category.trim();
     if (desc !== undefined) updates.desc = desc.trim();
-    if (image !== undefined) updates.image = image.trim();
+    if (image !== undefined) updates.image = image;
 
     const updated = await Product.findByIdAndUpdate(
       req.params.id,
