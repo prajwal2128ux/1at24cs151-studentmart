@@ -6,12 +6,11 @@ import {
   Navigate,
 } from "react-router-dom";
 
-
-
 import Register from "./components/Register";
 import Login from "./components/login";
-import Dashboard from "./components/dashboard";
-import Profile from "./components/profile";
+import CustomerDashboard from "./components/CustomerDashboard";
+import AdminDashboard from "./components/AdminDashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function AuthPage() {
   return (
@@ -84,15 +83,68 @@ function AuthPage() {
   );
 }
 
+function RoleBasedRedirect() {
+  const token = localStorage.getItem("studentmartToken");
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  let user = null;
+  try {
+    const raw = localStorage.getItem("studentmartUser");
+    user = raw ? JSON.parse(raw) : null;
+  } catch {
+    user = null;
+  }
+
+  return user?.role === "admin" ? (
+    <Navigate to="/admin/dashboard" replace />
+  ) : (
+    <Navigate to="/customer/dashboard" replace />
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public authentication page */}
         <Route path="/" element={<AuthPage />} />
         <Route path="/login" element={<AuthPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/profile" element={<Profile />} />
 
+        {/* Customer Dashboard Routes */}
+        <Route
+          path="/customer/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["customer"]}>
+              <CustomerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/customer/*"
+          element={<Navigate to="/customer/dashboard" replace />}
+        />
+
+        {/* Admin Dashboard Routes */}
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/*"
+          element={<Navigate to="/admin/dashboard" replace />}
+        />
+
+        {/* Legacy & Shortcut Routes */}
+        <Route path="/dashboard" element={<RoleBasedRedirect />} />
+        <Route path="/profile" element={<RoleBasedRedirect />} />
+
+        {/* Fallback */}
         <Route
           path="*"
           element={<Navigate to="/" replace />}

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { API_BASE_URL } from "../config";
 
@@ -8,6 +7,7 @@ function Register() {
     name: "",
     email: "",
     password: "",
+    role: "customer",
   });
 
   const [message, setMessage] = useState("");
@@ -15,10 +15,19 @@ function Register() {
   const [loading, setLoading] = useState(false);
 
   function handleChange(e) {
+    const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
+  }
+
+  function handleRoleChange(newRole) {
+    setForm((prev) => ({
+      ...prev,
+      role: newRole,
+    }));
+    setMessage("");
   }
 
   async function handleRegister(e) {
@@ -49,7 +58,10 @@ function Register() {
         throw new Error(data.message || "Registration failed. Server returned an error.");
       }
 
-      setMessage(data.message || "Registration successful. You can log in now.");
+      const roleLabel = form.role === "admin" ? "Store Administrator" : "Student";
+      setMessage(
+        data.message || `Account created successfully as ${roleLabel}! You can now sign in using the Login form.`
+      );
       setMessageType("success");
 
       setForm({
@@ -57,6 +69,7 @@ function Register() {
         name: "",
         email: "",
         password: "",
+        role: form.role,
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -72,26 +85,49 @@ function Register() {
   return (
     <div>
       <h2>Create Account</h2>
+
+      {/* Role Toggle Switcher */}
+      <div className="role-toggle-bar">
+        <button
+          type="button"
+          className={`role-toggle-btn ${form.role === "customer" ? "active" : ""}`}
+          onClick={() => handleRoleChange("customer")}
+        >
+          🎓 Student
+        </button>
+        <button
+          type="button"
+          className={`role-toggle-btn ${form.role === "admin" ? "active admin-active" : ""}`}
+          onClick={() => handleRoleChange("admin")}
+        >
+          🛡️ Store Admin
+        </button>
+      </div>
+
       <p className="auth-description">
-        Create your StudentMart student account.
+        {form.role === "admin"
+          ? "Create an Administrator account to publish and manage campus products."
+          : "Create a Student account to shop and trade campus items."}
       </p>
 
       <form onSubmit={handleRegister}>
         <div>
-          <label htmlFor="register-usn">Student USN</label>
+          <label htmlFor="register-usn">
+            {form.role === "admin" ? "Admin ID / USN" : "Student USN"}
+          </label>
           <input
             id="register-usn"
             name="usn"
             type="text"
             value={form.usn}
             onChange={handleChange}
-            placeholder="Enter your USN"
+            placeholder={form.role === "admin" ? "e.g. ADM001 or USN" : "Enter your USN"}
             required
           />
         </div>
 
         <div>
-          <label htmlFor="register-name">Name</label>
+          <label htmlFor="register-name">Full Name</label>
           <input
             id="register-name"
             name="name"
@@ -104,7 +140,7 @@ function Register() {
         </div>
 
         <div>
-          <label htmlFor="register-email">Email</label>
+          <label htmlFor="register-email">Email Address</label>
           <input
             id="register-email"
             name="email"
@@ -131,7 +167,11 @@ function Register() {
         </div>
 
         <button type="submit" disabled={loading}>
-          {loading ? "Registering..." : "Register"}
+          {loading
+            ? "Creating account..."
+            : form.role === "admin"
+            ? "Register as Administrator"
+            : "Register as Student"}
         </button>
       </form>
 

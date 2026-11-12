@@ -3,7 +3,7 @@ import { API_BASE_URL } from "../config";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function Dashboard({ initialTab = "profile" }) {
+export default function Dashboard({ role: propRole, initialTab = "profile" }) {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -13,7 +13,7 @@ export default function Dashboard({ initialTab = "profile" }) {
   // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
 
   // Form states
   const [editForm, setEditForm] = useState({
@@ -37,10 +37,10 @@ export default function Dashboard({ initialTab = "profile" }) {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [priceSort, setPriceSort] = useState("default");
 
-  // Initial student products with images
+  // Fallback default products
   const defaultProducts = [
     {
-      id: 1,
+      id: "1",
       title: "Engineering Mathematics Textbook",
       price: 450,
       category: "Books",
@@ -48,7 +48,7 @@ export default function Dashboard({ initialTab = "profile" }) {
       image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80",
     },
     {
-      id: 2,
+      id: "2",
       title: "Scientific Calculator FX-991EX",
       price: 850,
       category: "Gadgets",
@@ -56,7 +56,7 @@ export default function Dashboard({ initialTab = "profile" }) {
       image: "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=600&auto=format&fit=crop&q=80",
     },
     {
-      id: 3,
+      id: "3",
       title: "Campus College Backpack",
       price: 650,
       category: "College Bags",
@@ -64,7 +64,7 @@ export default function Dashboard({ initialTab = "profile" }) {
       image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80",
     },
     {
-      id: 4,
+      id: "4",
       title: "Lab Coat & Safety Apron (Size M)",
       price: 299,
       category: "Uniform",
@@ -72,7 +72,7 @@ export default function Dashboard({ initialTab = "profile" }) {
       image: "https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=600&auto=format&fit=crop&q=80",
     },
     {
-      id: 5,
+      id: "5",
       title: "Engineering Drawing Kit & Drafter",
       price: 550,
       category: "Stationery",
@@ -80,7 +80,7 @@ export default function Dashboard({ initialTab = "profile" }) {
       image: "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=600&auto=format&fit=crop&q=80",
     },
     {
-      id: 6,
+      id: "6",
       title: "Wireless Study Earbuds",
       price: 1199,
       category: "Gadgets",
@@ -108,7 +108,7 @@ export default function Dashboard({ initialTab = "profile" }) {
     }
   });
 
-  // New product form state with image section
+  // Add Product form state
   const [newProduct, setNewProduct] = useState({
     title: "",
     price: "",
@@ -117,6 +117,27 @@ export default function Dashboard({ initialTab = "profile" }) {
     image: "",
   });
 
+  // Fetch live products from backend
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/products`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.products && Array.isArray(data.products) && data.products.length > 0) {
+          setProducts(data.products);
+          localStorage.setItem("studentmartProducts", JSON.stringify(data.products));
+        }
+      }
+    } catch (err) {
+      console.warn("Could not reach products API, using stored products:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Fetch current user profile
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("studentmartToken");
@@ -164,6 +185,31 @@ export default function Dashboard({ initialTab = "profile" }) {
 
     fetchUser();
   }, [navigate]);
+
+  // Determine effective user role
+  const effectiveRole =
+    propRole ||
+    user?.role ||
+    (() => {
+      try {
+        const u = localStorage.getItem("studentmartUser");
+        return u ? JSON.parse(u).role : "customer";
+      } catch {
+        return "customer";
+      }
+    })() ||
+    "customer";
+
+  const isAdmin = effectiveRole === "admin";
+
+  // Prevent role-tab mismatch
+  useEffect(() => {
+    if (isAdmin && activeTab === "cart") {
+      setActiveTab("view-products");
+    } else if (!isAdmin && activeTab === "add-products") {
+      setActiveTab("view-products");
+    }
+  }, [isAdmin, activeTab]);
 
   const handleLogout = () => {
     localStorage.removeItem("studentmartToken");
@@ -239,13 +285,13 @@ export default function Dashboard({ initialTab = "profile" }) {
     }
   };
 
-  // Image Upload Handler (reads image file and converts to base64 preview)
+  // Image Upload Handler (reads as Base64 data URL)
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setAlertMessage({ type: "error", text: "Please select an image file." });
+      setAlertMessage({ type: "error", text: "Please select an image file (PNG, JPG, JPEG)." });
       return;
     }
 
@@ -259,11 +305,40 @@ export default function Dashboard({ initialTab = "profile" }) {
     reader.readAsDataURL(file);
   };
 
-  // Add Product Handler
-  const handleAddProduct = (e) => {
+  const handleEditImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setAlertMessage({ type: "error", text: "Please select an image file (PNG, JPG, JPEG)." });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditingProduct((prev) => ({
+        ...prev,
+        image: reader.result,
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Add Product Handler (Admin only)
+  const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!newProduct.title.trim() || !newProduct.price) {
-      setAlertMessage({ type: "error", text: "Please fill in title and price." });
+    if (!isAdmin) {
+      setAlertMessage({ type: "error", text: "Only administrators can add products." });
+      return;
+    }
+
+    if (!newProduct.title.trim()) {
+      setAlertMessage({ type: "error", text: "Please enter a product title." });
+      return;
+    }
+
+    if (newProduct.price === "" || isNaN(Number(newProduct.price))) {
+      setAlertMessage({ type: "error", text: "Please enter a valid price." });
       return;
     }
 
@@ -278,41 +353,160 @@ export default function Dashboard({ initialTab = "profile" }) {
         ? "https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=600&auto=format&fit=crop&q=80"
         : "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=600&auto=format&fit=crop&q=80";
 
-    const item = {
-      id: Date.now(),
+    const itemPayload = {
       title: newProduct.title.trim(),
       price: Number(newProduct.price),
-      category: newProduct.category,
+      category: newProduct.category || "Books",
       desc: newProduct.desc.trim() || "Available for campus pickup.",
       image: newProduct.image || fallbackImage,
     };
 
-    const updated = [item, ...products];
-    setProducts(updated);
     try {
+      const token = localStorage.getItem("studentmartToken");
+      if (!token) {
+        throw new Error("Admin session expired. Please log in again.");
+      }
+
+      const res = await fetch(`${API_BASE_URL}/products`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(itemPayload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to publish product.");
+      }
+
+      const savedItem = data.product || { ...itemPayload, id: Date.now().toString() };
+      const updated = [savedItem, ...products.filter((p) => (p.id || p._id) !== (savedItem.id || savedItem._id))];
+      setProducts(updated);
       localStorage.setItem("studentmartProducts", JSON.stringify(updated));
+
+      setNewProduct({
+        title: "",
+        price: "",
+        category: "Books",
+        desc: "",
+        image: "",
+      });
+
+      setAlertMessage({
+        type: "success",
+        text: `"${savedItem.title}" published to Student Store!`,
+      });
+
+      setActiveTab("view-products");
     } catch (err) {
-      console.warn("Storage full, saved in state", err);
+      console.error("Add Product Error:", err);
+      setAlertMessage({ type: "error", text: err.message || "Failed to add product." });
     }
-
-    setNewProduct({
-      title: "",
-      price: "",
-      category: "Books",
-      desc: "",
-      image: "",
-    });
-
-    setAlertMessage({
-      type: "success",
-      text: `"${item.title}" added to Student Store!`,
-    });
-
-    setIsAddProductModalOpen(false);
-    setActiveTab("view-products");
   };
 
+  // Open Edit Product Modal
+  const handleOpenEditProduct = (product) => {
+    setEditingProduct({
+      id: product.id || product._id,
+      title: product.title || product.name || "",
+      price: product.price !== undefined ? product.price : "",
+      category: product.category || "Books",
+      desc: product.desc || product.description || "",
+      image: product.image || "",
+    });
+  };
+
+  // Save Edited Product (Admin only)
+  const handleSaveEditProduct = async (e) => {
+    e.preventDefault();
+    if (!isAdmin || !editingProduct) return;
+
+    try {
+      const token = localStorage.getItem("studentmartToken");
+      const res = await fetch(`${API_BASE_URL}/products/${editingProduct.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: editingProduct.title.trim(),
+          price: Number(editingProduct.price),
+          category: editingProduct.category,
+          desc: editingProduct.desc.trim(),
+          image: editingProduct.image,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to update product.");
+      }
+
+      const updatedItem = data.product || editingProduct;
+      const updated = products.map((p) =>
+        (p.id === editingProduct.id || p._id === editingProduct.id) ? { ...p, ...updatedItem } : p
+      );
+      setProducts(updated);
+      localStorage.setItem("studentmartProducts", JSON.stringify(updated));
+
+      setAlertMessage({
+        type: "success",
+        text: `"${updatedItem.title}" updated successfully!`,
+      });
+      setEditingProduct(null);
+    } catch (err) {
+      setAlertMessage({ type: "error", text: err.message || "Failed to update product." });
+    }
+  };
+
+  // Delete Product Handler (Admin only)
+  const handleDeleteProduct = async (productId) => {
+    if (!isAdmin) {
+      setAlertMessage({ type: "error", text: "Only administrators can delete products." });
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this product from the store?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("studentmartToken");
+      if (token) {
+        const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok && res.status !== 404) {
+          throw new Error(data.message || "Failed to delete product from server.");
+        }
+      }
+
+      const updated = products.filter((p) => p.id !== productId && p._id !== productId);
+      setProducts(updated);
+      localStorage.setItem("studentmartProducts", JSON.stringify(updated));
+
+      setAlertMessage({
+        type: "success",
+        text: "Product deleted from Student Store.",
+      });
+    } catch (err) {
+      setAlertMessage({ type: "error", text: err.message || "Failed to delete product." });
+    }
+  };
+
+  // Add to Cart Handler (Customer only)
   const addToCart = (product) => {
+    if (isAdmin) {
+      setAlertMessage({ type: "error", text: "Administrators cannot add items to cart." });
+      return;
+    }
     const updated = [...cart, product];
     setCart(updated);
     try {
@@ -326,11 +520,15 @@ export default function Dashboard({ initialTab = "profile" }) {
   // Filter & Sort Logic
   const filteredProducts = products.filter((item) => {
     const term = searchTerm.toLowerCase().trim();
+    const title = (item.title || item.name || "").toLowerCase();
+    const desc = (item.desc || item.description || "").toLowerCase();
+    const cat = (item.category || "").toLowerCase();
+
     const matchesSearch =
       term === "" ||
-      item.title.toLowerCase().includes(term) ||
-      item.desc.toLowerCase().includes(term) ||
-      item.category.toLowerCase().includes(term);
+      title.includes(term) ||
+      desc.includes(term) ||
+      cat.includes(term);
 
     const matchesCategory =
       selectedCategory === "All" || item.category === selectedCategory;
@@ -368,28 +566,31 @@ export default function Dashboard({ initialTab = "profile" }) {
   return (
     <div className="portal-container">
       {/* =========================================
-          LEFT SIDEBAR (EXACT SCREENSHOT LAYOUT)
+          LEFT SIDEBAR (ROLE-BASED VIEW)
           ========================================= */}
       <aside className="portal-sidebar">
         {/* Brand */}
         <div className="sidebar-brand">
           <div className="brand-icon">S</div>
-          <span className="brand-title">StudentMart</span>
+          <div>
+            <span className="brand-title">StudentMart</span>
+          </div>
         </div>
 
         {/* Menu title */}
-        <div className="sidebar-menu-title">MAIN MENU</div>
+        <div className="sidebar-menu-title">
+          {isAdmin ? "ADMIN MENU" : "MAIN MENU"}
+        </div>
 
-        {/* Navigation list matching the photo */}
+        {/* Navigation list matching requirements */}
         <nav className="sidebar-nav">
-          {/* 1. Profile */}
+          {/* 1. Profile (Customer & Admin) */}
           <button
             type="button"
             className={`sidebar-item ${activeTab === "profile" ? "active" : ""}`}
             onClick={() => setActiveTab("profile")}
           >
             <span className="sidebar-icon">
-              {/* Profile Outline Icon */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
@@ -398,31 +599,31 @@ export default function Dashboard({ initialTab = "profile" }) {
             Profile
           </button>
 
-          {/* 2. Add Products */}
-          <button
-            type="button"
-            className={`sidebar-item ${activeTab === "add-products" ? "active" : ""}`}
-            onClick={() => setActiveTab("add-products")}
-          >
-            <span className="sidebar-icon">
-              {/* Plus in Square Icon */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="4" ry="4" />
-                <line x1="12" y1="8" x2="12" y2="16" />
-                <line x1="8" y1="12" x2="16" y2="12" />
-              </svg>
-            </span>
-            Add Products
-          </button>
+          {/* 2. Add Products (Admin ONLY) */}
+          {isAdmin && (
+            <button
+              type="button"
+              className={`sidebar-item ${activeTab === "add-products" ? "active" : ""}`}
+              onClick={() => setActiveTab("add-products")}
+            >
+              <span className="sidebar-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="4" ry="4" />
+                  <line x1="12" y1="8" x2="12" y2="16" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+              </span>
+              Add Products
+            </button>
+          )}
 
-          {/* 3. View Products */}
+          {/* 3. View Products (Customer & Admin) */}
           <button
             type="button"
             className={`sidebar-item ${activeTab === "view-products" || activeTab === "products" ? "active" : ""}`}
             onClick={() => setActiveTab("view-products")}
           >
             <span className="sidebar-icon">
-              {/* Isometric Box / Package Icon */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m7.5 4.27 9 5.15" />
                 <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
@@ -433,22 +634,23 @@ export default function Dashboard({ initialTab = "profile" }) {
             View Products
           </button>
 
-          {/* 4. Shopping Cart */}
-          <button
-            type="button"
-            className={`sidebar-item ${activeTab === "cart" ? "active" : ""}`}
-            onClick={() => setActiveTab("cart")}
-          >
-            <span className="sidebar-icon">
-              {/* Cart Outline Icon */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="9" cy="21" r="1" />
-                <circle cx="20" cy="21" r="1" />
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-              </svg>
-            </span>
-            Shopping Cart {cart.length > 0 && `(${cart.length})`}
-          </button>
+          {/* 4. Shopping Cart (Customer ONLY) */}
+          {!isAdmin && (
+            <button
+              type="button"
+              className={`sidebar-item ${activeTab === "cart" ? "active" : ""}`}
+              onClick={() => setActiveTab("cart")}
+            >
+              <span className="sidebar-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1" />
+                  <circle cx="20" cy="21" r="1" />
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                </svg>
+              </span>
+              Shopping Cart {cart.length > 0 && `(${cart.length})`}
+            </button>
+          )}
         </nav>
 
         {/* Logout at bottom */}
@@ -459,7 +661,6 @@ export default function Dashboard({ initialTab = "profile" }) {
             onClick={handleLogout}
           >
             <span className="sidebar-icon">
-              {/* Logout Exit Icon */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
@@ -483,62 +684,80 @@ export default function Dashboard({ initialTab = "profile" }) {
         )}
 
         {/* =========================================
-            1. PROFILE VIEW (SCREENSHOT 1)
+            1. PROFILE VIEW
             ========================================= */}
         {activeTab === "profile" && (
           <div>
             <header className="portal-header">
-              <h1>Welcome, {displayName}! 👋</h1>
-              <p>Manage your StudentMart profile here.</p>
+              <h1>
+                Welcome, {displayName}! 👋
+              </h1>
+              <p>
+                {isAdmin
+                  ? "Manage your StudentMart Administrator profile."
+                  : "Manage your StudentMart student profile here."}
+              </p>
             </header>
 
             <div className="profile-card-container">
               <div className="profile-box">
-                <h2 className="profile-box-title">My Profile</h2>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+                  <h2 className="profile-box-title" style={{ margin: 0 }}>My Profile</h2>
+                  <span className={`role-badge ${isAdmin ? "admin" : "customer"}`}>
+                    {isAdmin ? "Store Admin" : "Student"}
+                  </span>
+                </div>
 
                 {/* Avatar circle with initial */}
                 <div className="profile-avatar-circle">
-                  {avatarLetter}
+                  <span>{avatarLetter}</span>
                 </div>
 
-                {/* Details List */}
+                {/* Profile Details List */}
                 <div className="profile-details-list">
                   <div className="profile-detail-row">
-                    <span className="detail-label">Name</span>
-                    <span className="detail-value">{displayName}</span>
+                    <span className="profile-label">Name</span>
+                    <span className="profile-value">{displayName}</span>
                   </div>
 
                   <div className="profile-detail-row">
-                    <span className="detail-label">Email</span>
-                    <span className="detail-value">{displayEmail}</span>
+                    <span className="profile-label">Email</span>
+                    <span className="profile-value">{displayEmail}</span>
                   </div>
 
                   <div className="profile-detail-row">
-                    <span className="detail-label">Phone</span>
-                    <span className="detail-value">{displayPhone}</span>
+                    <span className="profile-label">Role</span>
+                    <span className="profile-value" style={{ textTransform: "capitalize", fontWeight: "700", color: isAdmin ? "#7c3aed" : "#2563eb" }}>
+                      {effectiveRole}
+                    </span>
                   </div>
 
                   <div className="profile-detail-row">
-                    <span className="detail-label">Department</span>
-                    <span className="detail-value">{displayDepartment}</span>
+                    <span className="profile-label">Phone</span>
+                    <span className="profile-value">{displayPhone}</span>
                   </div>
 
                   <div className="profile-detail-row">
-                    <span className="detail-label">Year</span>
-                    <span className="detail-value">{displayYear}</span>
+                    <span className="profile-label">Department</span>
+                    <span className="profile-value">{displayDepartment}</span>
                   </div>
 
                   <div className="profile-detail-row">
-                    <span className="detail-label">Address</span>
-                    <span className="detail-value">{displayAddress}</span>
+                    <span className="profile-label">Year</span>
+                    <span className="profile-value">{displayYear}</span>
+                  </div>
+
+                  <div className="profile-detail-row">
+                    <span className="profile-label">Address</span>
+                    <span className="profile-value">{displayAddress}</span>
                   </div>
                 </div>
 
-                {/* Action buttons */}
+                {/* Action Buttons */}
                 <div className="profile-actions">
                   <button
                     type="button"
-                    className="btn-edit-profile"
+                    className="btn-profile-edit"
                     onClick={() => setIsEditModalOpen(true)}
                   >
                     Edit Profile
@@ -546,7 +765,7 @@ export default function Dashboard({ initialTab = "profile" }) {
 
                   <button
                     type="button"
-                    className="btn-change-password"
+                    className="btn-profile-password"
                     onClick={() => setIsPasswordModalOpen(true)}
                   >
                     Change Password
@@ -558,42 +777,52 @@ export default function Dashboard({ initialTab = "profile" }) {
         )}
 
         {/* =========================================
-            2. VIEW PRODUCTS / STUDENT STORE (SCREENSHOT 2)
+            2. VIEW PRODUCTS (STUDENT STORE)
             ========================================= */}
         {(activeTab === "view-products" || activeTab === "products") && (
           <div className="store-container">
-            {/* Header: Student Store + Cart & Add Product */}
+            {/* Store Header Top Bar */}
             <div className="store-header">
-              <h2 className="store-title">Student Store</h2>
+              <div>
+                <h2 className="store-title">Student Store</h2>
+                <p className="store-subtitle">
+                  {isAdmin
+                    ? "Manage campus products, inventory, and listings"
+                    : "Browse and buy used textbooks, calculators, bags, and essentials"}
+                </p>
+              </div>
 
               <div className="store-header-actions">
-                <button
-                  type="button"
-                  className="btn-store-cart"
-                  onClick={() => setActiveTab("cart")}
-                >
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="9" cy="21" r="1" />
-                    <circle cx="20" cy="21" r="1" />
-                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                  </svg>
-                  Cart
-                  {cart.length > 0 && (
-                    <span className="cart-count-badge">{cart.length}</span>
-                  )}
-                </button>
+                {/* Cart button ONLY for Customer */}
+                {!isAdmin && (
+                  <button
+                    type="button"
+                    className="btn-store-cart"
+                    onClick={() => setActiveTab("cart")}
+                  >
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="9" cy="21" r="1" />
+                      <circle cx="20" cy="21" r="1" />
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                    </svg>
+                    Cart {cart.length > 0 && `(${cart.length})`}
+                  </button>
+                )}
 
-                <button
-                  type="button"
-                  className="btn-store-add"
-                  onClick={() => setIsAddProductModalOpen(true)}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  + Add Product
-                </button>
+                {/* + Add Product button ONLY for Admin - switches directly to Add Products tab */}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="btn-store-add"
+                    onClick={() => setActiveTab("add-products")}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    + Add Product
+                  </button>
+                )}
               </div>
             </div>
 
@@ -616,13 +845,14 @@ export default function Dashboard({ initialTab = "profile" }) {
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
-                <option value="All">All</option>
+                <option value="All">All Categories</option>
                 <option value="Books">Books</option>
                 <option value="Gadgets">Gadgets</option>
                 <option value="College Bags">College Bags</option>
                 <option value="Uniform">Uniform</option>
                 <option value="Stationery">Stationery</option>
                 <option value="Essentials">Essentials</option>
+                <option value="Other">Other</option>
               </select>
 
               {/* Price Sort Filter */}
@@ -645,12 +875,12 @@ export default function Dashboard({ initialTab = "profile" }) {
             ) : (
               <div className="store-grid">
                 {sortedProducts.map((item) => (
-                  <div key={item.id} className="store-card">
+                  <div key={item.id || item._id} className="store-card">
                     {/* Image Section */}
                     <div className="store-card-img-wrapper">
                       <img
                         src={item.image}
-                        alt={item.title}
+                        alt={item.title || item.name}
                         className="store-card-img"
                         onError={(e) => {
                           e.target.src =
@@ -662,23 +892,57 @@ export default function Dashboard({ initialTab = "profile" }) {
 
                     {/* Card Content */}
                     <div className="store-card-body">
-                      <h3 className="store-card-title">{item.title}</h3>
-                      <p className="store-card-desc">{item.desc}</p>
+                      <h3 className="store-card-title">{item.title || item.name}</h3>
+                      <p className="store-card-desc">{item.desc || item.description}</p>
 
                       <div className="store-card-footer">
                         <span className="store-card-price">₹{item.price}</span>
-                        <button
-                          type="button"
-                          className="btn-card-add"
-                          onClick={() => addToCart(item)}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="9" cy="21" r="1" />
-                            <circle cx="20" cy="21" r="1" />
-                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                          </svg>
-                          Add to Cart
-                        </button>
+
+                        {/* Customer: Add to Cart */}
+                        {!isAdmin ? (
+                          <button
+                            type="button"
+                            className="btn-card-add"
+                            onClick={() => addToCart(item)}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="9" cy="21" r="1" />
+                              <circle cx="20" cy="21" r="1" />
+                              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                            </svg>
+                            Add to Cart
+                          </button>
+                        ) : (
+                          /* Admin: Edit and Delete */
+                          <div className="store-card-admin-actions">
+                            <button
+                              type="button"
+                              className="btn-card-edit"
+                              onClick={() => handleOpenEditProduct(item)}
+                              title="Edit this product"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-card-delete"
+                              onClick={() => handleDeleteProduct(item.id || item._id)}
+                              title="Delete this product"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <line x1="10" y1="11" x2="10" y2="17" />
+                                <line x1="14" y1="11" x2="14" y2="17" />
+                              </svg>
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -689,18 +953,23 @@ export default function Dashboard({ initialTab = "profile" }) {
         )}
 
         {/* =========================================
-            3. ADD PRODUCTS VIEW
+            3. ADD PRODUCTS VIEW (ADMIN ONLY)
             ========================================= */}
-        {activeTab === "add-products" && (
+        {isAdmin && activeTab === "add-products" && (
           <div className="store-container">
             <div className="store-header">
-              <h2 className="store-title">+ Add Product to Student Store</h2>
+              <div>
+                <h2 className="store-title">+ Add Product to Student Store</h2>
+                <p className="store-subtitle">
+                  Create and publish a new item to the campus marketplace
+                </p>
+              </div>
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={() => setActiveTab("view-products")}
               >
-                ← View Products
+                ← View Store
               </button>
             </div>
 
@@ -709,13 +978,13 @@ export default function Dashboard({ initialTab = "profile" }) {
             <form
               onSubmit={handleAddProduct}
               className="modal-form"
-              style={{ maxWidth: "600px" }}
+              style={{ maxWidth: "620px" }}
             >
               <div className="form-group">
-                <label>Product Title *</label>
+                <label>Product Name / Title *</label>
                 <input
                   type="text"
-                  placeholder="e.g. College Bag, Books, Calculator"
+                  placeholder="e.g. Engineering Mathematics Textbook, FX-991EX Calculator"
                   value={newProduct.title}
                   onChange={(e) =>
                     setNewProduct({ ...newProduct, title: e.target.value })
@@ -724,11 +993,12 @@ export default function Dashboard({ initialTab = "profile" }) {
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
                 <div className="form-group">
                   <label>Price (₹) *</label>
                   <input
                     type="number"
+                    min="0"
                     placeholder="e.g. 450"
                     value={newProduct.price}
                     onChange={(e) =>
@@ -742,7 +1012,7 @@ export default function Dashboard({ initialTab = "profile" }) {
                   <label>Category *</label>
                   <select
                     className="store-select"
-                    style={{ width: "100%", padding: "9px 12px" }}
+                    style={{ width: "100%", padding: "10px 12px" }}
                     value={newProduct.category}
                     onChange={(e) =>
                       setNewProduct({ ...newProduct, category: e.target.value })
@@ -751,8 +1021,8 @@ export default function Dashboard({ initialTab = "profile" }) {
                     <option value="Books">Books</option>
                     <option value="Gadgets">Gadgets</option>
                     <option value="College Bags">College Bags</option>
-                    <option value="Uniform">Uniform</option>
                     <option value="Stationery">Stationery</option>
+                    <option value="Uniform">Uniform</option>
                     <option value="Essentials">Essentials</option>
                     <option value="Other">Other</option>
                   </select>
@@ -763,7 +1033,7 @@ export default function Dashboard({ initialTab = "profile" }) {
                 <label>Description</label>
                 <textarea
                   rows="3"
-                  placeholder="Condition, edition, semester details..."
+                  placeholder="Enter details about condition, semester, edition, notes..."
                   value={newProduct.desc}
                   onChange={(e) =>
                     setNewProduct({ ...newProduct, desc: e.target.value })
@@ -775,11 +1045,11 @@ export default function Dashboard({ initialTab = "profile" }) {
               <div className="form-group">
                 <label>Product Image</label>
 
-                {/* Upload Image Zone */}
+                {/* Local file upload */}
                 <div className="image-upload-zone">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png, image/jpeg, image/jpg"
                     onChange={handleImageUpload}
                   />
                   <div className="upload-icon">📸</div>
@@ -787,11 +1057,11 @@ export default function Dashboard({ initialTab = "profile" }) {
                   <p className="upload-subtext">Supports PNG, JPG, JPEG from your device</p>
                 </div>
 
-                {/* Alternative: Image URL */}
-                <div style={{ marginTop: "6px" }}>
+                {/* URL input */}
+                <div style={{ marginTop: "8px" }}>
                   <input
                     type="url"
-                    placeholder="Or paste an image web URL..."
+                    placeholder="Or paste an image web URL (https://...)"
                     value={newProduct.image.startsWith("data:") ? "" : newProduct.image}
                     onChange={(e) =>
                       setNewProduct({ ...newProduct, image: e.target.value })
@@ -799,9 +1069,9 @@ export default function Dashboard({ initialTab = "profile" }) {
                   />
                 </div>
 
-                {/* Live Image Preview */}
+                {/* Live image preview */}
                 {newProduct.image && (
-                  <div className="image-preview-wrapper">
+                  <div className="image-preview-wrapper" style={{ marginTop: "10px" }}>
                     <img src={newProduct.image} alt="Product Preview" />
                     <button
                       type="button"
@@ -815,8 +1085,8 @@ export default function Dashboard({ initialTab = "profile" }) {
                 )}
               </div>
 
-              <div style={{ marginTop: "14px" }}>
-                <button type="submit" className="btn-primary" style={{ padding: "11px 24px" }}>
+              <div style={{ marginTop: "16px" }}>
+                <button type="submit" className="btn-primary" style={{ padding: "12px 28px", fontSize: "14px" }}>
                   Publish to Student Store
                 </button>
               </div>
@@ -825,9 +1095,9 @@ export default function Dashboard({ initialTab = "profile" }) {
         )}
 
         {/* =========================================
-            4. SHOPPING CART VIEW
+            4. SHOPPING CART VIEW (CUSTOMER ONLY)
             ========================================= */}
-        {activeTab === "cart" && (
+        {!isAdmin && activeTab === "cart" && (
           <div className="store-container">
             <div className="store-header">
               <h2 className="store-title">Shopping Cart</h2>
@@ -862,7 +1132,7 @@ export default function Dashboard({ initialTab = "profile" }) {
                       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <img
                           src={item.image}
-                          alt={item.title}
+                          alt={item.title || item.name}
                           style={{
                             width: "48px",
                             height: "48px",
@@ -872,7 +1142,7 @@ export default function Dashboard({ initialTab = "profile" }) {
                         />
                         <div>
                           <strong style={{ display: "block", color: "#0f172a" }}>
-                            {item.title}
+                            {item.title || item.name}
                           </strong>
                           <span style={{ fontSize: "12px", color: "#64748b" }}>
                             {item.category}
@@ -955,24 +1225,23 @@ export default function Dashboard({ initialTab = "profile" }) {
       </main>
 
       {/* =========================================
-          ADD PRODUCT MODAL (TRIGGERED FROM STORE HEADER)
+          EDIT PRODUCT MODAL (ADMIN ONLY)
           ========================================= */}
-      {isAddProductModalOpen && (
+      {isAdmin && editingProduct && (
         <div
           className="modal-backdrop"
-          onClick={() => setIsAddProductModalOpen(false)}
+          onClick={() => setEditingProduct(null)}
         >
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">+ Add Product to Student Store</h3>
-            <form onSubmit={handleAddProduct} className="modal-form">
+            <h3 className="modal-title">Edit Product</h3>
+            <form onSubmit={handleSaveEditProduct} className="modal-form">
               <div className="form-group">
                 <label>Product Title *</label>
                 <input
                   type="text"
-                  placeholder="e.g. College Bag, Books, Calculator"
-                  value={newProduct.title}
+                  value={editingProduct.title}
                   onChange={(e) =>
-                    setNewProduct({ ...newProduct, title: e.target.value })
+                    setEditingProduct({ ...editingProduct, title: e.target.value })
                   }
                   required
                 />
@@ -983,10 +1252,10 @@ export default function Dashboard({ initialTab = "profile" }) {
                   <label>Price (₹) *</label>
                   <input
                     type="number"
-                    placeholder="e.g. 450"
-                    value={newProduct.price}
+                    min="0"
+                    value={editingProduct.price}
                     onChange={(e) =>
-                      setNewProduct({ ...newProduct, price: e.target.value })
+                      setEditingProduct({ ...editingProduct, price: e.target.value })
                     }
                     required
                   />
@@ -997,16 +1266,16 @@ export default function Dashboard({ initialTab = "profile" }) {
                   <select
                     className="store-select"
                     style={{ width: "100%", padding: "9px 12px" }}
-                    value={newProduct.category}
+                    value={editingProduct.category}
                     onChange={(e) =>
-                      setNewProduct({ ...newProduct, category: e.target.value })
+                      setEditingProduct({ ...editingProduct, category: e.target.value })
                     }
                   >
                     <option value="Books">Books</option>
                     <option value="Gadgets">Gadgets</option>
                     <option value="College Bags">College Bags</option>
-                    <option value="Uniform">Uniform</option>
                     <option value="Stationery">Stationery</option>
+                    <option value="Uniform">Uniform</option>
                     <option value="Essentials">Essentials</option>
                     <option value="Other">Other</option>
                   </select>
@@ -1016,11 +1285,10 @@ export default function Dashboard({ initialTab = "profile" }) {
               <div className="form-group">
                 <label>Description</label>
                 <textarea
-                  rows="2"
-                  placeholder="Condition, edition, semester details..."
-                  value={newProduct.desc}
+                  rows="3"
+                  value={editingProduct.desc}
                   onChange={(e) =>
-                    setNewProduct({ ...newProduct, desc: e.target.value })
+                    setEditingProduct({ ...editingProduct, desc: e.target.value })
                   }
                 />
               </div>
@@ -1032,8 +1300,8 @@ export default function Dashboard({ initialTab = "profile" }) {
                 <div className="image-upload-zone">
                   <input
                     type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
+                    accept="image/png, image/jpeg, image/jpg"
+                    onChange={handleEditImageUpload}
                   />
                   <div className="upload-icon">📸</div>
                   <p className="upload-text">Click to choose image file</p>
@@ -1044,21 +1312,21 @@ export default function Dashboard({ initialTab = "profile" }) {
                   <input
                     type="url"
                     placeholder="Or paste an image web URL..."
-                    value={newProduct.image.startsWith("data:") ? "" : newProduct.image}
+                    value={editingProduct.image.startsWith("data:") ? "" : editingProduct.image}
                     onChange={(e) =>
-                      setNewProduct({ ...newProduct, image: e.target.value })
+                      setEditingProduct({ ...editingProduct, image: e.target.value })
                     }
                   />
                 </div>
 
-                {newProduct.image && (
-                  <div className="image-preview-wrapper">
-                    <img src={newProduct.image} alt="Product Preview" />
+                {editingProduct.image && (
+                  <div className="image-preview-wrapper" style={{ marginTop: "8px" }}>
+                    <img src={editingProduct.image} alt="Product Preview" />
                     <button
                       type="button"
                       className="btn-remove-image"
                       title="Remove image"
-                      onClick={() => setNewProduct({ ...newProduct, image: "" })}
+                      onClick={() => setEditingProduct({ ...editingProduct, image: "" })}
                     >
                       ✕
                     </button>
@@ -1070,12 +1338,12 @@ export default function Dashboard({ initialTab = "profile" }) {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setIsAddProductModalOpen(false)}
+                  onClick={() => setEditingProduct(null)}
                 >
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary">
-                  Publish Product
+                  Save Changes
                 </button>
               </div>
             </form>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
@@ -6,6 +5,7 @@ import { API_BASE_URL } from "../config";
 function Login() {
   const navigate = useNavigate();
 
+  const [role, setRole] = useState("customer");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -28,6 +28,7 @@ function Login() {
           body: JSON.stringify({
             email: email.trim(),
             password,
+            role,
           }),
         }
       );
@@ -48,17 +49,27 @@ function Login() {
         throw new Error("The server did not return a login token.");
       }
 
+      // Determine the resolved role
+      const effectiveRole =
+        role === "admin" || data.user?.role === "admin"
+          ? "admin"
+          : "customer";
+
+      // Save token and user object with the active role
       localStorage.setItem("studentmartToken", data.token);
 
-      if (data.user) {
-        localStorage.setItem(
-          "studentmartUser",
-          JSON.stringify(data.user)
-        );
-      }
+      const userObject = {
+        ...(data.user || {}),
+        role: effectiveRole,
+      };
+      localStorage.setItem("studentmartUser", JSON.stringify(userObject));
 
-      // Navigate to the dashboard after successful login
-      navigate("/dashboard", { replace: true });
+      // Redirect immediately to the chosen dashboard
+      if (effectiveRole === "admin") {
+        navigate("/admin/dashboard", { replace: true });
+      } else {
+        navigate("/customer/dashboard", { replace: true });
+      }
     } catch (error) {
       console.error("Login error:", error);
       setMessage(error.message || "Unable to connect to the server.");
@@ -71,19 +82,49 @@ function Login() {
     <div>
       <h2>Login</h2>
 
+      {/* Role Toggle Switcher */}
+      <div className="role-toggle-bar">
+        <button
+          type="button"
+          className={`role-toggle-btn ${role === "customer" ? "active" : ""}`}
+          onClick={() => {
+            setRole("customer");
+            setMessage("");
+          }}
+        >
+          🎓 Student
+        </button>
+        <button
+          type="button"
+          className={`role-toggle-btn ${role === "admin" ? "active admin-active" : ""}`}
+          onClick={() => {
+            setRole("admin");
+            setMessage("");
+          }}
+        >
+          🛡️ Store Admin
+        </button>
+      </div>
+
       <p className="auth-description">
-        Welcome back. Sign in to your account.
+        {role === "admin"
+          ? "Sign in as Administrator to manage campus store items and inventory."
+          : "Welcome back. Sign in to browse and buy products."}
       </p>
 
       <form onSubmit={handleLogin}>
         <div>
-          <label htmlFor="login-email">Email</label>
+          <label htmlFor="login-email">
+            {role === "admin" ? "Admin Email" : "Email Address"}
+          </label>
           <input
             id="login-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
+            placeholder={
+              role === "admin" ? "admin@studentmart.com" : "Enter your email"
+            }
             autoComplete="email"
             required
           />
@@ -103,7 +144,11 @@ function Login() {
         </div>
 
         <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
+          {loading
+            ? "Signing in..."
+            : role === "admin"
+            ? "Login to Admin Dashboard"
+            : "Login to Student Store"}
         </button>
       </form>
 

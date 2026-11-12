@@ -17,6 +17,7 @@ router.post("/register", async (req, res) => {
       usn,
       email,
       password,
+      role,
       name,
       phone,
       college,
@@ -75,10 +76,19 @@ router.post("/register", async (req, res) => {
       10
     );
 
+    const isExplicitAdmin =
+      role === "admin" ||
+      cleanUSN.startsWith("ADM") ||
+      cleanUSN.startsWith("AM") ||
+      cleanEmail.includes("admin");
+
+    const userRole = isExplicitAdmin ? "admin" : (role || "customer");
+
     const user = new User({
       usn: cleanUSN,
       email: cleanEmail,
       password: hashedPassword,
+      role: userRole,
       name: name ? name.trim() : "",
       phone: phone ? phone.trim() : "",
       college: college ? college.trim() : "",
@@ -111,7 +121,7 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -142,9 +152,29 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    let userRole = user.role || "customer";
+
+    // If user explicitly signs in through the Admin tab, or is already admin in DB,
+    // or their USN indicates admin (e.g. starts with ADM / ADMIN / AM)
+    if (
+      role === "admin" ||
+      user.role === "admin" ||
+      (user.usn && (user.usn.startsWith("ADM") || user.usn.startsWith("AM"))) ||
+      cleanEmail.includes("admin")
+    ) {
+      userRole = "admin";
+      if (user.role !== "admin") {
+        user.role = "admin";
+        await user.save();
+      }
+    } else if (role === "customer" && user.role !== "admin") {
+      userRole = "customer";
+    }
+
     const token = jwt.sign(
       {
         userId: user._id,
+        role: userRole,
       },
       process.env.JWT_SECRET,
       {
@@ -162,6 +192,7 @@ router.post("/login", async (req, res) => {
         name: user.name,
         usn: user.usn,
         email: user.email,
+        role: userRole,
         phone: user.phone,
         college: user.college,
         course: user.course,
@@ -182,7 +213,7 @@ router.post("/login", async (req, res) => {
 });
 
 /* =========================================
-   AUTHENTICATION MIDDLEWARE
+   AUTHENTICATION & AUTHORIZATION MIDDLEWARES
    ========================================= */
 
 async function authenticate(req, res, next) {
@@ -230,6 +261,22 @@ async function authenticate(req, res, next) {
   }
 }
 
+function isAdmin(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({
+      message: "Authentication required.",
+    });
+  }
+
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      message: "Access denied. Admin privileges required.",
+    });
+  }
+
+  next();
+}
+
 /* =========================================
    GET PROFILE
    GET /api/auth/profile
@@ -270,8 +317,8 @@ router.put(
         phone,
         college,
         course,
-      department,
-      address,
+        department,
+        address,
         semester,
         year,
         dateOfBirth,
@@ -432,5 +479,8 @@ router.all(
     }
   }
 );
+
+router.authenticate = authenticate;
+router.isAdmin = isAdmin;
 
 module.exports = router;
