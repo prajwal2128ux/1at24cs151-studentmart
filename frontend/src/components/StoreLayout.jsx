@@ -18,7 +18,7 @@ export default function StoreLayout() {
   ] : [
     ["/shop", "Dashboard", LayoutDashboard],
     ["/shop/products", "Browse Products", Package],
-    ["/shop/cart", `Shopping Cart (${cartCount})`, ShoppingCart],
+    ["/shop/cart", "Shopping Cart", ShoppingCart],
     ["/shop/orders", "My Orders", ClipboardList],
   ];
 
@@ -31,19 +31,33 @@ export default function StoreLayout() {
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="brand-icon"><Store size={27}/></div>
+          <div className="brand-icon"><Store size={26}/></div>
           <div className="brand-details"><h2>StudentMart</h2><span>Campus Marketplace</span></div>
         </div>
         <p className="menu-heading">MAIN MENU</p>
         <nav className="nav-menu">
-          {links.map(([to, label, Icon]) => <NavLink key={to} to={to} end className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}>
-            <Icon size={19}/><span>{label}</span>
-          </NavLink>)}
-          <NavLink to="/profile" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><UserRound size={19}/><span>My Profile</span></NavLink>
-          {admin && <NavLink to="/settings" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><Settings size={19}/><span>Settings</span></NavLink>}
+          {links.map(([to, label, Icon]) => (
+            <NavLink key={to} to={to} end className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}>
+              <Icon size={19}/>
+              <span>{label}</span>
+              {to === "/shop/cart" && cartCount > 0 && (
+                <span className="sidebar-cart-count">{cartCount}</span>
+              )}
+            </NavLink>
+          ))}
+          <NavLink to="/profile" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}>
+            <UserRound size={19}/>
+            <span>My Profile</span>
+          </NavLink>
+          {admin && (
+            <NavLink to="/settings" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}>
+              <Settings size={19}/>
+              <span>Settings</span>
+            </NavLink>
+          )}
         </nav>
         <div className="sidebar-support">
-          <h3>{admin ? "Administrator" : "Welcome to StudentMart"}</h3>
+          <h3>{admin ? "Administrator" : "Welcome, Student"}</h3>
           <p>{user?.name}<br/>{user?.email}</p>
           <span className="role-pill">{user?.role?.toUpperCase()}</span>
         </div>
@@ -52,7 +66,21 @@ export default function StoreLayout() {
       <main className="main-content">
         <header className="top-navbar">
           <div className="breadcrumb"><span>StudentMart</span><span>/</span><strong>{admin ? "Admin Portal" : "Marketplace"}</strong></div>
-          <div className="navbar-right"><div className="navbar-user"><div className="user-avatar">{user?.name?.[0]?.toUpperCase()}</div><div className="user-details"><strong>{user?.name}</strong><span>{admin ? "Administrator" : "Student"}</span></div></div></div>
+          <div className="navbar-right">
+            {!admin && (
+              <NavLink to="/shop/cart" className="navbar-cart-link" title="Shopping Cart">
+                <ShoppingCart size={19} />
+                {cartCount > 0 && <span className="navbar-cart-count">{cartCount}</span>}
+              </NavLink>
+            )}
+            <NavLink to="/profile" className="navbar-user">
+              <div className="user-avatar">{user?.name?.[0]?.toUpperCase()}</div>
+              <div className="user-details">
+                <strong>{user?.name}</strong>
+                <span>{admin ? "Administrator" : "Student"}</span>
+              </div>
+            </NavLink>
+          </div>
         </header>
         <div className="page-content"><Outlet/></div>
       </main>
