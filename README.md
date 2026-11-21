@@ -55,13 +55,13 @@ The API runs at `http://localhost:5000` by default.
 
 ## 4. Configure and start the frontend
 
-In another terminal, from the project root:
-
 ```bash
+cd frontend
 npm install
+npm run dev
 ```
 
-Copy `.env.example` to `.env` if your API is not running at `http://localhost:5000`. Then run:
+Or directly from the project root:
 
 ```bash
 npm run dev
