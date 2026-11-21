@@ -1,6 +1,6 @@
 /* ==========================================================================
    STUDENTMART - SETTINGS PAGE
-   Emerald & Obsidian Modern Campus Marketplace
+   Royal Cobalt Theme
    ========================================================================== */
 
 .settings-page {
@@ -139,7 +139,7 @@
 .settings-field select:focus {
   border-color: var(--border-focus);
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 /* Setting rows */

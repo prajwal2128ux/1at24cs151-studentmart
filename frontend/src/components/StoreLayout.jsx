@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { 
   Store, ShoppingCart, Package, ClipboardList, 
   Users, Settings, UserRound, LogOut, LayoutDashboard,
-  Menu, X, Sparkles
+  Menu, X, Sparkles, ChevronRight, ShieldCheck, HelpCircle
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -12,19 +12,48 @@ export default function StoreLayout() {
   const { user, logout } = useAuth();
   const { cartCount } = useCart();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const admin = user?.role === "admin";
 
-  const links = admin ? [
-    ["/admin", "Dashboard", LayoutDashboard],
-    ["/admin/products", "Inventory", Package],
-    ["/admin/orders", "Orders", ClipboardList],
-    ["/admin/users", "Customers", Users],
-    ["/settings", "Settings", Settings],
+  const navSections = admin ? [
+    {
+      heading: "STORE MANAGEMENT",
+      items: [
+        { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
+        { to: "/admin/products", label: "Inventory & Products", icon: Package },
+        { to: "/admin/orders", label: "Customer Orders", icon: ClipboardList },
+      ]
+    },
+    {
+      heading: "DIRECTORY & SYSTEM",
+      items: [
+        { to: "/admin/users", label: "Customers", icon: Users },
+        { to: "/settings", label: "Store Settings", icon: Settings },
+        { to: "/profile", label: "Admin Profile", icon: UserRound },
+      ]
+    }
   ] : [
-    ["/shop", "Marketplace", LayoutDashboard],
-    ["/shop/products", "Explore Products", Package],
-    ["/shop/orders", "My Orders", ClipboardList],
+    {
+      heading: "MARKETPLACE",
+      items: [
+        { to: "/shop", label: "Dashboard", icon: LayoutDashboard, end: true },
+        { to: "/shop/products", label: "Explore Catalog", icon: Package },
+      ]
+    },
+    {
+      heading: "PURCHASES",
+      items: [
+        { to: "/shop/cart", label: "Shopping Cart", icon: ShoppingCart, badge: cartCount },
+        { to: "/shop/orders", label: "My Orders", icon: ClipboardList },
+      ]
+    },
+    {
+      heading: "ACCOUNT",
+      items: [
+        { to: "/profile", label: "My Profile", icon: UserRound },
+      ]
+    }
   ];
 
   const signOut = async () => {
@@ -32,177 +61,183 @@ export default function StoreLayout() {
     navigate("/login", { replace: true });
   };
 
-  return (
-    <div className="marketplace-app">
-      {/* Top Utility Bar */}
-      <div className="top-utility-bar">
-        <div className="utility-inner">
-          <span className="utility-tag">
-            <Sparkles size={13} /> Campus Marketplace
-          </span>
-          <span className="utility-info">
-            Fast Handover • Zero Commission • Cash on Delivery
-          </span>
-          <span className="utility-status">
-            <span className="status-dot"></span> Live Network
-          </span>
-        </div>
-      </div>
+  const getBreadcrumbTitle = () => {
+    const path = location.pathname;
+    if (path === "/shop") return "Student Marketplace";
+    if (path === "/shop/products") return "Explore Catalog";
+    if (path === "/shop/cart") return "Shopping Cart";
+    if (path === "/shop/checkout") return "Checkout";
+    if (path === "/shop/orders") return "My Orders";
+    if (path === "/admin") return "Admin Command Center";
+    if (path.startsWith("/admin/products")) return "Inventory Management";
+    if (path === "/admin/orders") return "Customer Orders";
+    if (path === "/admin/users") return "Customer Directory";
+    if (path === "/settings") return "System Settings";
+    if (path === "/profile") return "User Profile";
+    return "Marketplace";
+  };
 
-      {/* Main Sticky Header */}
-      <header className="main-header">
-        <div className="header-container">
-          {/* Brand Logo */}
-          <NavLink to={admin ? "/admin" : "/shop"} className="brand-logo">
-            <div className="logo-symbol">
+  return (
+    <div className="app-shell">
+      {/* Mobile Backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="sidebar-backdrop" 
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Modern Executive Sidebar */}
+      <aside className={`app-sidebar ${sidebarOpen ? "open" : ""}`}>
+        {/* Brand Header */}
+        <div className="sidebar-brand-box">
+          <NavLink to={admin ? "/admin" : "/shop"} className="sidebar-brand" onClick={() => setSidebarOpen(false)}>
+            <div className="brand-logo-icon">
               <Store size={22} />
             </div>
-            <div className="logo-text">
-              <span className="logo-title">StudentMart</span>
-              <span className="logo-badge">{admin ? "ADMIN CONSOLE" : "CAMPUS COMMERCE"}</span>
+            <div className="brand-info">
+              <span className="brand-name">StudentMart</span>
+              <span className="brand-tagline">
+                {admin ? "ADMIN CONSOLE" : "CAMPUS COMMERCE"}
+              </span>
             </div>
           </NavLink>
 
-          {/* Desktop Navigation Links */}
-          <nav className="desktop-nav">
-            {links.map(([to, label, Icon]) => (
-              <NavLink 
-                key={to} 
-                to={to} 
-                end={to === "/admin" || to === "/shop"} 
-                className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}
-              >
-                <Icon size={16} />
-                <span>{label}</span>
-              </NavLink>
-            ))}
-          </nav>
+          <button 
+            className="sidebar-close-btn" 
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close sidebar"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-          {/* Right Header Actions */}
-          <div className="header-actions">
+        {/* Navigation Groups */}
+        <div className="sidebar-nav-container">
+          {navSections.map((section, idx) => (
+            <div className="sidebar-nav-group" key={idx}>
+              <span className="group-heading">{section.heading}</span>
+              <nav className="nav-list">
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) => `sidebar-nav-item ${isActive ? "active" : ""}`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <item.icon size={18} className="item-icon" />
+                    <span className="item-label">{item.label}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="sidebar-badge">{item.badge}</span>
+                    )}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          ))}
+        </div>
+
+        {/* Sidebar Support & Trust Box */}
+        <div className="sidebar-trust-box">
+          <div className="trust-icon">
+            <ShieldCheck size={18} />
+          </div>
+          <div>
+            <strong>Verified Campus Network</strong>
+            <p>Peer handover with Cash on Delivery</p>
+          </div>
+        </div>
+
+        {/* User Footer Profile */}
+        <div className="sidebar-footer">
+          <NavLink to="/profile" className="user-profile-tile" onClick={() => setSidebarOpen(false)}>
+            <div className="user-avatar-badge">
+              {user?.name?.[0]?.toUpperCase() || "U"}
+            </div>
+            <div className="user-text-meta">
+              <strong className="user-full-name">{user?.name || "Student"}</strong>
+              <span className="user-email-text">{user?.email}</span>
+            </div>
+          </NavLink>
+
+          <button className="sidebar-signout-btn" onClick={signOut} title="Sign Out">
+            <LogOut size={17} />
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Viewport */}
+      <div className="app-viewport">
+        {/* Top Sticky Navbar */}
+        <header className="app-topbar">
+          <div className="topbar-left">
+            <button 
+              className="topbar-menu-btn" 
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open sidebar menu"
+            >
+              <Menu size={20} />
+            </button>
+
+            <div className="topbar-breadcrumbs">
+              <span className="crumb-root">StudentMart</span>
+              <ChevronRight size={14} className="crumb-sep" />
+              <span className="crumb-active">{getBreadcrumbTitle()}</span>
+            </div>
+          </div>
+
+          <div className="topbar-right">
             {!admin && (
-              <NavLink to="/shop/cart" className="cart-action-btn" title="View Cart">
+              <NavLink to="/shop/cart" className="topbar-cart-btn" title="View Shopping Cart">
                 <ShoppingCart size={18} />
-                <span className="cart-btn-label">Cart</span>
+                <span className="cart-label-text">Cart</span>
                 {cartCount > 0 && (
-                  <span className="cart-badge-pill">{cartCount}</span>
+                  <span className="topbar-cart-badge">{cartCount}</span>
                 )}
               </NavLink>
             )}
 
-            {/* User Profile Chip */}
-            <NavLink to="/profile" className="user-profile-chip" title="My Profile">
-              <div className="user-avatar-circle">
+            <div className="topbar-status-chip">
+              <span className="status-live-dot" />
+              <span>Campus Live</span>
+            </div>
+
+            <NavLink to="/profile" className="topbar-user-chip" title="My Account">
+              <div className="chip-avatar">
                 {user?.name?.[0]?.toUpperCase() || "U"}
               </div>
-              <div className="user-info-text">
-                <span className="user-name-label">{user?.name}</span>
-                <span className="user-role-tag">{admin ? "Administrator" : "Student"}</span>
-              </div>
+              <span className="chip-name">{user?.name}</span>
             </NavLink>
-
-            {/* Logout Button */}
-            <button className="header-logout-btn" onClick={signOut} title="Sign Out">
-              <LogOut size={16} />
-              <span className="logout-text">Exit</span>
-            </button>
-
-            {/* Mobile Hamburger Toggle */}
-            <button 
-              className="mobile-menu-toggle" 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle navigation menu"
-            >
-              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
           </div>
-        </div>
+        </header>
 
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
-          <div className="mobile-nav-drawer">
-            <div className="mobile-nav-links">
-              {links.map(([to, label, Icon]) => (
-                <NavLink 
-                  key={to} 
-                  to={to} 
-                  end={to === "/admin" || to === "/shop"} 
-                  className={({isActive}) => `mobile-nav-item ${isActive ? "active" : ""}`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Icon size={18} />
-                  <span>{label}</span>
-                </NavLink>
-              ))}
-              {!admin && (
-                <NavLink 
-                  to="/shop/cart" 
-                  className="mobile-nav-item"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <ShoppingCart size={18} />
-                  <span>Shopping Cart ({cartCount})</span>
-                </NavLink>
-              )}
-              <NavLink 
-                to="/profile" 
-                className="mobile-nav-item"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <UserRound size={18} />
-                <span>My Profile</span>
-              </NavLink>
-              <button className="mobile-logout-btn" onClick={signOut}>
-                <LogOut size={18} />
-                <span>Sign Out</span>
-              </button>
+        {/* Dynamic Page Canvas */}
+        <main className="app-canvas">
+          <Outlet />
+        </main>
+
+        {/* Integrated Footer */}
+        <footer className="canvas-footer">
+          <div className="footer-content">
+            <div className="footer-left">
+              <div className="footer-brand">
+                <Store size={18} />
+                <span>StudentMart</span>
+              </div>
+              <p>The student-first campus marketplace. Safe, fast peer-to-peer commerce.</p>
+            </div>
+            <div className="footer-right">
+              <div className="footer-trust-pills">
+                <span>✓ Verified Students</span>
+                <span>✓ Zero Commission</span>
+                <span>✓ Cash on Delivery</span>
+              </div>
+              <span className="footer-copy">© {new Date().getFullYear()} StudentMart • Built for campus life</span>
             </div>
           </div>
-        )}
-      </header>
-
-      {/* Main Content Area */}
-      <main className="marketplace-canvas">
-        <Outlet />
-      </main>
-
-      {/* Modern Marketplace Footer */}
-      <footer className="marketplace-footer">
-        <div className="footer-container">
-          <div className="footer-brand-section">
-            <div className="footer-logo">
-              <Store size={22} />
-              <span>StudentMart</span>
-            </div>
-            <p>The trusted peer-to-peer campus marketplace designed for students to buy and sell textbooks, electronics, and essentials safely.</p>
-          </div>
-          <div className="footer-links-grid">
-            <div className="footer-col">
-              <h4>Quick Links</h4>
-              <NavLink to={admin ? "/admin" : "/shop"}>Dashboard</NavLink>
-              <NavLink to={admin ? "/admin/products" : "/shop/products"}>{admin ? "Inventory" : "Explore Products"}</NavLink>
-              <NavLink to={admin ? "/admin/orders" : "/shop/orders"}>{admin ? "All Orders" : "My Orders"}</NavLink>
-              {!admin && <NavLink to="/shop/cart">Shopping Cart</NavLink>}
-            </div>
-            <div className="footer-col">
-              <h4>My Account</h4>
-              <NavLink to="/profile">Profile Settings</NavLink>
-              {admin && <NavLink to="/settings">Store Settings</NavLink>}
-              <button onClick={signOut} className="footer-link-btn">Sign Out</button>
-            </div>
-            <div className="footer-col">
-              <h4>Campus Trust</h4>
-              <span>✓ Verified College Members</span>
-              <span>✓ Safe Campus Pickup</span>
-              <span>✓ Cash on Delivery Guaranteed</span>
-            </div>
-          </div>
-        </div>
-        <div className="footer-bottom-bar">
-          <span>© {new Date().getFullYear()} StudentMart • Campus Commerce Simplified.</span>
-          <span>Designed with high security & seamless usability.</span>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }

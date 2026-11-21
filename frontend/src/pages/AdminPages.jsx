@@ -87,21 +87,28 @@ export function AdminDashboard() {
   return (
     <div className="dashboard-page">
       <section className="dashboard-welcome">
-        <div>
-          <span>ADMINISTRATOR PORTAL</span>
-          <h1>Welcome back, Admin!</h1>
-          <p>Manage products, inventory and customer orders.</p>
+        <div className="welcome-content">
+          <div className="welcome-tag-pill">
+            ADMINISTRATOR CONTROL CENTER
+          </div>
+          <h1>Store Performance & Catalog Overview</h1>
+          <p>Real-time analytics for products, live customer orders, inventory health, and revenue.</p>
 
-          <Link className="welcome-action" to="/admin/products">
-            <Plus size={16} /> Manage Products
-          </Link>
+          <div className="welcome-actions-row">
+            <Link className="welcome-action primary" to="/admin/products/add">
+              <Plus size={16} /> Add New Listing
+            </Link>
+            <Link className="welcome-action secondary" to="/admin/orders">
+              Manage Customer Orders
+            </Link>
+          </div>
         </div>
       </section>
 
       <div className="dashboard-section-heading">
         <div>
-          <h2>Store Overview</h2>
-          <p>Live marketplace statistics</p>
+          <h2>Store Performance Metrics</h2>
+          <p>Live marketplace analytics & database indicators</p>
         </div>
       </div>
 
