@@ -1,11 +1,15 @@
-
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Search,
   ShoppingCart,
   Package,
-  ArrowRight
+  ArrowRight,
+  Sparkles,
+  CheckCircle2,
+  Tag,
+  SlidersHorizontal,
+  Flame
 } from "lucide-react";
 
 import { useProducts } from "../context/ProductContext";
@@ -24,11 +28,21 @@ function getImageUrl(imageUrl) {
   return `${API_BASE}/${image.replace(/^\/+/, "")}`;
 }
 
+const CATEGORIES = [
+  "All",
+  "Electronics",
+  "Books",
+  "Stationery",
+  "Accessories",
+  "Clothing",
+  "Other"
+];
+
 // ==========================================
 // PRODUCT CARD
 // ==========================================
 
-function ProductCard({ product }) {
+export function ProductCard({ product }) {
   const {
     cartItems,
     addToCart,
@@ -48,7 +62,6 @@ function ProductCard({ product }) {
     : 0;
 
   const stock = Math.max(0, Number(product.stock || 0));
-
   const imageSrc = getImageUrl(product.imageUrl);
 
   const handleAdd = () => {
@@ -77,7 +90,6 @@ function ProductCard({ product }) {
 
   return (
     <article className="product-card">
-
       <div className="product-image-wrap">
         {imageSrc && !imageError ? (
           <img
@@ -85,11 +97,12 @@ function ProductCard({ product }) {
             alt={product.name}
             className="product-image"
             onError={() => setImageError(true)}
+            loading="lazy"
           />
         ) : (
           <div className="product-image-fallback">
-            <Package size={45} />
-            <span>Image unavailable</span>
+            <Package size={44} />
+            <span>Campus Item</span>
           </div>
         )}
 
@@ -100,75 +113,83 @@ function ProductCard({ product }) {
             ? "stock-low"
             : "stock-out"
         }`}>
-          {stock > 0 ? `${stock} available` : "Out of stock"}
+          {stock > 0 ? `${stock} in stock` : "Sold out"}
         </span>
       </div>
 
       <div className="product-card-content">
+        <div className="product-meta-row">
+          <span className="product-category">
+            <Tag size={11} /> {product.category}
+          </span>
+          {stock > 0 && stock <= 3 && (
+            <span className="stock-alert-chip">
+              <Flame size={11} /> Low stock
+            </span>
+          )}
+        </div>
 
-        <span className="product-category">
-          {product.category}
-        </span>
-
-        <h3>{product.name}</h3>
+        <h3 title={product.name}>{product.name}</h3>
 
         <p className="product-description">
           {product.description}
         </p>
 
         <div className="product-price-row">
-          <strong>
-            ₹{Number(product.price || 0).toLocaleString("en-IN")}
-          </strong>
-          <span>{stock} units</span>
+          <div className="price-tag-wrap">
+            <span className="currency-symbol">₹</span>
+            <strong className="price-amount">
+              {Number(product.price || 0).toLocaleString("en-IN")}
+            </strong>
+          </div>
+          <span className="product-availability">
+            {stock > 0 ? "Cash on Delivery" : "Unavailable"}
+          </span>
         </div>
 
-        {/* Add to Cart and quantity controls side by side */}
+        {/* Action Controls */}
         <div className="product-cart-actions">
-
           <button
             type="button"
             className="add-cart-button"
             disabled={stock <= 0}
             onClick={handleAdd}
           >
-            Add to Cart
+            <ShoppingCart size={15} />
+            {quantity > 0 ? `In Cart (${quantity})` : "Add to Cart"}
           </button>
 
-          <div className="product-quantity-control">
+          {quantity > 0 && (
+            <div className="product-quantity-control">
+              <button
+                type="button"
+                className="quantity-btn"
+                onClick={handleDecrease}
+                aria-label="Decrease quantity"
+              >
+                −
+              </button>
 
-            <button
-              type="button"
-              className="quantity-btn"
-              onClick={handleDecrease}
-              disabled={quantity <= 0}
-              aria-label="Decrease quantity"
-            >
-              −
-            </button>
+              <span className="quantity-number">
+                {quantity}
+              </span>
 
-            <span className="quantity-number">
-              {quantity}
-            </span>
-
-            <button
-              type="button"
-              className="quantity-btn"
-              onClick={handleIncrease}
-              disabled={stock <= 0 || quantity >= stock}
-              aria-label="Increase quantity"
-            >
-              +
-            </button>
-
-          </div>
-
+              <button
+                type="button"
+                className="quantity-btn"
+                onClick={handleIncrease}
+                disabled={quantity >= stock}
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
+          )}
         </div>
 
         {message && (
           <p className="quantity-message">{message}</p>
         )}
-
       </div>
     </article>
   );
@@ -198,82 +219,129 @@ export function ProductGrid({ products = [] }) {
 export function ShopDashboard() {
   const { products, loading, error } = useProducts();
   const { cartCount } = useCart();
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   const stock = products.reduce(
     (total, product) => total + Number(product.stock || 0),
     0
   );
 
+  const filteredFeatured = useMemo(() => {
+    if (selectedCategory === "All") return products.slice(0, 6);
+    return products.filter(p => p.category === selectedCategory).slice(0, 6);
+  }, [products, selectedCategory]);
+
   return (
     <div className="dashboard-page">
-
+      {/* Hero Showcase */}
       <section className="dashboard-welcome">
-        <div>
-          <span>STUDENTMART MARKETPLACE</span>
-          <h1>Welcome to StudentMart!</h1>
-          <p>Discover useful products for campus life.</p>
+        <div className="welcome-content">
+          <div className="welcome-tag-pill">
+            <Sparkles size={14} /> VERIFIED CAMPUS COMMERCE
+          </div>
+          <h1>Buy & Sell Essentials Across Campus.</h1>
+          <p>
+            Textbooks, electronics, lab supplies, and dorm essentials directly from fellow students. Safe peer handover with Cash on Delivery.
+          </p>
 
-          <Link className="welcome-action" to="/shop/products">
-            Explore Products <ArrowRight size={16} />
-          </Link>
+          <div className="welcome-actions-row">
+            <Link className="welcome-action primary" to="/shop/products">
+              Explore All Listings <ArrowRight size={16} />
+            </Link>
+            <Link className="welcome-action secondary" to="/shop/orders">
+              Track My Orders
+            </Link>
+          </div>
+
+          <div className="welcome-trust-badges">
+            <span><CheckCircle2 size={13} /> Zero Listing Fees</span>
+            <span><CheckCircle2 size={13} /> Same-Day Campus Handover</span>
+            <span><CheckCircle2 size={13} /> Cash on Delivery (COD)</span>
+          </div>
         </div>
       </section>
 
+      {/* KPI Metric Cards */}
       <div className="dashboard-stats-grid user-stats">
-
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
-            <div className="stat-icon"><Package /></div>
-            Available Products
+            <div className="stat-icon emerald"><Package size={20} /></div>
+            <span>Available Products</span>
           </div>
           <strong>{loading ? "..." : products.length}</strong>
-          <p>Products listed in marketplace</p>
+          <p>Active items in student catalog</p>
         </div>
 
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
-            <div className="stat-icon"><ShoppingCart /></div>
-            Cart Items
+            <div className="stat-icon blue"><ShoppingCart size={20} /></div>
+            <span>Shopping Cart</span>
           </div>
           <strong>{cartCount}</strong>
-          <p>Items in your shopping cart</p>
+          <p>Items ready for checkout</p>
         </div>
 
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
-            <div className="stat-icon"><Package /></div>
-            Available Units
+            <div className="stat-icon amber"><Package size={20} /></div>
+            <span>Total Units</span>
           </div>
           <strong>{stock}</strong>
-          <p>Total listed stock</p>
+          <p>Total units available in stock</p>
         </div>
-
       </div>
 
+      {/* Quick Category Filter Bar */}
+      <div className="category-pill-strip">
+        <span className="category-strip-label"><SlidersHorizontal size={14} /> Categories:</span>
+        <div className="category-pills">
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              type="button"
+              className={`category-pill-btn ${selectedCategory === cat ? "active" : ""}`}
+              onClick={() => setSelectedCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Section Header */}
       <div className="dashboard-section-heading">
         <div>
-          <h2>Featured Products</h2>
-          <p>Explore the latest additions.</p>
+          <h2>Featured Campus Listings</h2>
+          <p>
+            {selectedCategory === "All" 
+              ? "Discover the newest arrivals from students" 
+              : `Showing top items in ${selectedCategory}`}
+          </p>
         </div>
-        <Link to="/shop/products">
-          Browse all <ArrowRight size={15} />
+        <Link to="/shop/products" className="view-all-link">
+          Browse full catalog <ArrowRight size={15} />
         </Link>
       </div>
 
       {loading ? (
-        <p>Loading products...</p>
+        <div className="page-loading">Loading marketplace listings...</div>
       ) : error ? (
         <div className="form-error">{error}</div>
+      ) : filteredFeatured.length > 0 ? (
+        <ProductGrid products={filteredFeatured} />
       ) : (
-        <ProductGrid products={products.slice(0, 4)} />
+        <div className="products-empty">
+          <Package size={44} />
+          <h3>No items in this category yet</h3>
+          <p>Try switching to "All" or browse the full catalog.</p>
+        </div>
       )}
-
     </div>
   );
 }
 
 // ==========================================
-// ALL PRODUCTS
+// ALL PRODUCTS CATALOG
 // ==========================================
 
 export function ShopProducts() {
@@ -281,16 +349,6 @@ export function ShopProducts() {
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
-
-  const categories = [
-    "All",
-    "Electronics",
-    "Books",
-    "Stationery",
-    "Accessories",
-    "Clothing",
-    "Other"
-  ];
 
   const shown = useMemo(() => {
     return products.filter(product => {
@@ -308,12 +366,11 @@ export function ShopProducts() {
 
   return (
     <div className="products-page">
-
       <div className="page-heading">
         <div>
           <span className="page-eyebrow">CAMPUS MARKETPLACE</span>
-          <h1>Browse Products</h1>
-          <p>Find what you need for campus life.</p>
+          <h1>Explore Products</h1>
+          <p>Discover textbooks, gear, and student items with safe campus pickup.</p>
         </div>
 
         <Link to="/shop/cart" className="primary-action">
@@ -321,15 +378,38 @@ export function ShopProducts() {
         </Link>
       </div>
 
-      <div className="products-toolbar">
+      {/* Category Tabs */}
+      <div className="catalog-category-tabs">
+        {CATEGORIES.map(cat => (
+          <button
+            key={cat}
+            type="button"
+            className={`catalog-tab ${category === cat ? "active" : ""}`}
+            onClick={() => setCategory(cat)}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
 
+      {/* Search Toolbar */}
+      <div className="products-toolbar">
         <div className="products-search">
           <Search size={18} />
           <input
-            placeholder="Search products..."
+            placeholder="Search by product name, description, textbook..."
             value={search}
             onChange={event => setSearch(event.target.value)}
           />
+          {search && (
+            <button 
+              type="button" 
+              className="search-clear-btn"
+              onClick={() => setSearch("")}
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         <div className="category-filter">
@@ -337,28 +417,38 @@ export function ShopProducts() {
             value={category}
             onChange={event => setCategory(event.target.value)}
           >
-            {categories.map(item => (
+            {CATEGORIES.map(item => (
               <option key={item} value={item}>{item}</option>
             ))}
           </select>
         </div>
 
+        <div className="catalog-count-badge">
+          {shown.length} {shown.length === 1 ? "item" : "items"}
+        </div>
       </div>
 
+      {/* Product Content */}
       {loading ? (
-        <p>Loading products...</p>
+        <div className="page-loading">Loading catalog listings...</div>
       ) : error ? (
         <div className="form-error">{error}</div>
       ) : shown.length > 0 ? (
         <ProductGrid products={shown} />
       ) : (
         <div className="products-empty">
-          <Package size={40} />
-          <h3>No products found</h3>
-          <p>Try a different search or category.</p>
+          <Package size={44} />
+          <h3>No products match your criteria</h3>
+          <p>Try searching with different terms or selecting "All" categories.</p>
+          <button 
+            type="button" 
+            className="clear-filters-btn"
+            onClick={() => { setSearch(""); setCategory("All"); }}
+          >
+            Reset All Filters
+          </button>
         </div>
       )}
-
     </div>
   );
 }

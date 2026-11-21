@@ -1,6 +1,6 @@
 /* ==========================================================================
-   STUDENTMART - ROLES, AUTH & ADMIN STYLES
-   Modern, Clean, Enterprise Aesthetic
+   STUDENTMART - ROLES, AUTH, ORDERS & ADMIN
+   Emerald & Obsidian Modern Campus Marketplace
    ========================================================================== */
 
 /* =====================================
@@ -25,7 +25,7 @@
   justify-content: space-between;
   min-height: 100vh;
   padding: 48px clamp(32px, 6vw, 84px);
-  background: linear-gradient(145deg, #090d16 0%, #0f172a 40%, #1e1b4b 100%);
+  background: linear-gradient(145deg, #06100d 0%, #064e3b 55%, #0f172a 100%);
   color: #ffffff;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -36,9 +36,9 @@
   z-index: -1;
   inset: 0;
   background:
-    radial-gradient(ellipse at 80% 70%, rgba(99, 102, 241, 0.22) 0%, transparent 45%),
-    radial-gradient(ellipse at 15% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
-    radial-gradient(ellipse at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 60%);
+    radial-gradient(ellipse at 80% 70%, rgba(16, 185, 129, 0.28) 0%, transparent 45%),
+    radial-gradient(ellipse at 15% 20%, rgba(14, 165, 233, 0.2) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 50%, rgba(5, 150, 105, 0.15) 0%, transparent 60%);
 }
 
 .auth-showcase-top {
@@ -65,11 +65,11 @@
 .auth-campus-tag {
   margin-left: auto;
   padding: 6px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(8px);
   border-radius: var(--radius-full);
-  color: #c7d2fe;
+  color: #a7f3d0;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -86,7 +86,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #818cf8;
+  color: #6ee7b7;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -104,7 +104,7 @@
 
 .auth-showcase-copy h1 em {
   display: block;
-  background: linear-gradient(135deg, #a5b4fc 0%, #c7d2fe 100%);
+  background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-style: normal;
@@ -112,7 +112,7 @@
 
 .auth-showcase-copy > p {
   max-width: 460px;
-  color: #94a3b8;
+  color: #cbd5e1;
   font-size: 15px;
   line-height: 1.65;
 }
@@ -129,14 +129,14 @@
   gap: 16px;
   padding: 12px 16px;
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(8px);
   transition: all var(--transition-fast);
 }
 
 .auth-feature-list > div:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   transform: translateX(4px);
 }
 
@@ -145,9 +145,9 @@
   height: 40px;
   padding: 9px;
   border-radius: var(--radius-md);
-  background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .auth-feature-list b {
@@ -282,7 +282,7 @@
   margin: 6px 0 0;
   color: var(--text-primary);
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .auth-label-row {
@@ -315,7 +315,7 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-primary);
 }
 
@@ -326,7 +326,7 @@
 .auth-form-modern .auth-input:focus-within {
   border-color: var(--border-focus);
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
   color: var(--primary);
 }
 
@@ -357,7 +357,7 @@
 }
 
 .auth-submit:hover:not(:disabled) {
-  filter: brightness(1.05);
+  filter: brightness(1.06);
   box-shadow: var(--primary-glow);
   transform: translateY(-1px);
 }
@@ -417,24 +417,6 @@
 
 .auth-panel-footer span {
   padding: 0 6px;
-}
-
-/* Legacy single-card auth fallback */
-.auth-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--bg-canvas);
-}
-
-.auth-card {
-  width: min(100%, 440px);
-  padding: 36px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
 }
 
 /* =====================================
@@ -558,7 +540,7 @@
 }
 
 .order-card {
-  padding: 22px;
+  padding: 24px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   background: var(--bg-surface);
@@ -581,6 +563,13 @@
   margin-bottom: 4px;
 }
 
+.order-card-head strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* Status Color Pills */
 .role-pill.status-delivered {
   background: var(--success-bg);
   color: var(--success);
@@ -605,12 +594,6 @@
   background: var(--warning-bg);
   color: var(--warning);
   border-color: var(--warning-border);
-}
-
-.order-card-head strong {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: var(--text-primary);
 }
 
 .order-card > p {
@@ -645,8 +628,8 @@
 }
 
 .order-card-foot > strong {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 14.5px;
+  font-weight: 800;
   color: var(--text-primary);
 }
 
@@ -657,7 +640,7 @@
   background: #f8fafc;
   color: var(--text-primary);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   outline: none;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -666,7 +649,7 @@
 .order-card-foot select:focus {
   border-color: var(--border-focus);
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 /* =====================================
