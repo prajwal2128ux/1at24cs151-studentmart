@@ -22,13 +22,13 @@ export default function ProductForm({ editing = false }) {
     api.get(`/products/${id}`)
       .then(({ data }) => {
         setForm({
-          name: data.name,
-          description: data.description,
+          name: data.name || data.title || "",
+          description: data.description || data.desc || "",
           price: data.price,
           category: data.category,
           stock: data.stock
         });
-        setOldImage(data.imageUrl || "");
+        setOldImage(data.imageUrl || data.image || "");
       })
       .catch(e => setError(e.response?.data?.message || "Unable to load product."))
       .finally(() => setLoading(false));
@@ -158,7 +158,11 @@ export default function ProductForm({ editing = false }) {
                 <div style={{ marginBottom: "10px" }}>
                   <img
                     className="image-preview"
-                    src={`${API_BASE}${oldImage}`}
+                    src={
+                      oldImage.startsWith("data:") || oldImage.startsWith("http")
+                        ? oldImage
+                        : `${API_BASE}/${oldImage.replace(/^\/+/, "")}`
+                    }
                     alt="Current product listing"
                   />
                   <small style={{ display: "block", color: "#64748b", marginTop: "4px" }}>

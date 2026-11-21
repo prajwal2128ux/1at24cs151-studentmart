@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Search,
@@ -16,19 +16,53 @@ import { useProducts } from "../context/ProductContext";
 import { useCart } from "../context/CartContext";
 import { API_BASE } from "../api";
 
-function getImageUrl(imageUrl) {
-  if (!imageUrl) return "";
+export const CATEGORY_FALLBACK_IMAGES = {
+  Books: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80",
+  Gadgets: "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=600&auto=format&fit=crop&q=80",
+  Electronics: "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=600&auto=format&fit=crop&q=80",
+  "College Bags": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80",
+  Accessories: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80",
+  Uniform: "https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=600&auto=format&fit=crop&q=80",
+  Clothing: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&auto=format&fit=crop&q=80",
+  Stationery: "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=600&auto=format&fit=crop&q=80",
+  Other: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=600&auto=format&fit=crop&q=80"
+};
+
+export function getProductImageUrl(imageUrl, category) {
+  if (!imageUrl || typeof imageUrl !== "string" || !imageUrl.trim()) {
+    return CATEGORY_FALLBACK_IMAGES[category] || CATEGORY_FALLBACK_IMAGES.Other;
+  }
 
   const image = String(imageUrl).trim();
 
-  if (image.startsWith("http://") || image.startsWith("https://")) {
+  if (
+    image.startsWith("data:") ||
+    image.startsWith("http://") ||
+    image.startsWith("https://") ||
+    image.startsWith("blob:")
+  ) {
     return image;
   }
 
   return `${API_BASE}/${image.replace(/^\/+/, "")}`;
 }
 
-const CATEGORIES = [
+export function matchesCategoryFilter(productCategory, selectedCategory) {
+  if (!selectedCategory || selectedCategory === "All") return true;
+  if (productCategory === selectedCategory) return true;
+  const pCat = String(productCategory || "").toLowerCase().trim();
+  const sCat = String(selectedCategory || "").toLowerCase().trim();
+  if (pCat === sCat) return true;
+  if (sCat === "electronics" && (pCat === "gadgets" || pCat === "electronics")) return true;
+  if (sCat === "gadgets" && (pCat === "gadgets" || pCat === "electronics")) return true;
+  if (sCat === "accessories" && (pCat === "college bags" || pCat === "accessories")) return true;
+  if (sCat === "college bags" && (pCat === "college bags" || pCat === "accessories")) return true;
+  if (sCat === "clothing" && (pCat === "uniform" || pCat === "clothing")) return true;
+  if (sCat === "uniform" && (pCat === "uniform" || pCat === "clothing")) return true;
+  return false;
+}
+
+const DEFAULT_CATEGORIES = [
   "All",
   "Electronics",
   "Books",
@@ -50,8 +84,24 @@ export function ProductCard({ product }) {
     decreaseQuantity
   } = useCart();
 
+  const primaryImage = product.imageUrl || product.image || "";
   const [imageError, setImageError] = useState(false);
+  const [imageSrc, setImageSrc] = useState(() => getProductImageUrl(primaryImage, product.category));
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setImageError(false);
+    setImageSrc(getProductImageUrl(product.imageUrl || product.image, product.category));
+  }, [product.imageUrl, product.image, product.category]);
+
+  const handleImageError = () => {
+    const fallback = CATEGORY_FALLBACK_IMAGES[product.category] || CATEGORY_FALLBACK_IMAGES.Other;
+    if (imageSrc !== fallback) {
+      setImageSrc(fallback);
+    } else {
+      setImageError(true);
+    }
+  };
 
   const cartProduct = cartItems.find(
     item => item._id === product._id
@@ -62,11 +112,20 @@ export function ProductCard({ product }) {
     : 0;
 
   const stock = Math.max(0, Number(product.stock || 0));
-  const imageSrc = getImageUrl(product.imageUrl);
+  const title = product.name || product.title || "Campus Item";
+  const description = product.description || product.desc || "Available for campus pickup.";
 
   const handleAdd = () => {
     try {
-      addToCart(product);
+      addToCart({
+        ...product,
+        name: title,
+        title,
+        description,
+        desc: description,
+        imageUrl: imageSrc,
+        image: imageSrc
+      });
       setMessage("");
     } catch (error) {
       setMessage(error.message || "Unable to add product.");
@@ -94,15 +153,15 @@ export function ProductCard({ product }) {
         {imageSrc && !imageError ? (
           <img
             src={imageSrc}
-            alt={product.name}
+            alt={title}
             className="product-image"
-            onError={() => setImageError(true)}
+            onError={handleImageError}
             loading="lazy"
           />
         ) : (
           <div className="product-image-fallback">
             <Package size={44} />
-            <span>Campus Item</span>
+            <span>{product.category || "Campus Item"}</span>
           </div>
         )}
 
@@ -129,10 +188,10 @@ export function ProductCard({ product }) {
           )}
         </div>
 
-        <h3 title={product.name}>{product.name}</h3>
+        <h3 title={title}>{title}</h3>
 
         <p className="product-description">
-          {product.description}
+          {description}
         </p>
 
         <div className="product-price-row">
@@ -226,9 +285,17 @@ export function ShopDashboard() {
     0
   );
 
+  const categoryList = useMemo(() => {
+    const cats = new Set(DEFAULT_CATEGORIES);
+    products.forEach(p => {
+      if (p.category) cats.add(p.category);
+    });
+    return Array.from(cats);
+  }, [products]);
+
   const filteredFeatured = useMemo(() => {
     if (selectedCategory === "All") return products.slice(0, 6);
-    return products.filter(p => p.category === selectedCategory).slice(0, 6);
+    return products.filter(p => matchesCategoryFilter(p.category, selectedCategory)).slice(0, 6);
   }, [products, selectedCategory]);
 
   return (
@@ -295,7 +362,7 @@ export function ShopDashboard() {
       <div className="category-pill-strip">
         <span className="category-strip-label"><SlidersHorizontal size={14} /> Categories:</span>
         <div className="category-pills">
-          {CATEGORIES.map(cat => (
+          {categoryList.map(cat => (
             <button
               key={cat}
               type="button"
@@ -350,13 +417,25 @@ export function ShopProducts() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
 
+  const categoryList = useMemo(() => {
+    const cats = new Set(DEFAULT_CATEGORIES);
+    products.forEach(p => {
+      if (p.category) cats.add(p.category);
+    });
+    return Array.from(cats);
+  }, [products]);
+
   const shown = useMemo(() => {
     return products.filter(product => {
-      const matchesCategory =
-        category === "All" || product.category === category;
+      const matchesCategory = matchesCategoryFilter(product.category, category);
+
+      const title = product.name || product.title || "";
+      const desc = product.description || product.desc || "";
+      const cat = product.category || "";
 
       const matchesSearch =
-        `${product.name} ${product.description}`
+        !search.trim() ||
+        `${title} ${desc} ${cat}`
           .toLowerCase()
           .includes(search.toLowerCase());
 
@@ -380,7 +459,7 @@ export function ShopProducts() {
 
       {/* Category Tabs */}
       <div className="catalog-category-tabs">
-        {CATEGORIES.map(cat => (
+        {categoryList.map(cat => (
           <button
             key={cat}
             type="button"
@@ -417,7 +496,7 @@ export function ShopProducts() {
             value={category}
             onChange={event => setCategory(event.target.value)}
           >
-            {CATEGORIES.map(item => (
+            {categoryList.map(item => (
               <option key={item} value={item}>{item}</option>
             ))}
           </select>

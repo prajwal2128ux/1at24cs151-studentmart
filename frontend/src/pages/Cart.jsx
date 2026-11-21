@@ -33,13 +33,21 @@ export default function Cart() {
             <div className="cart-panel-heading"><h2>Cart Items</h2><span>{cartCount} items</span></div>
             {cartItems.map(item => (
               <div className="cart-item" key={item._id}>
-                {item.imageUrl ? (
-                  <img src={`${API_BASE}${item.imageUrl}`} alt={item.name}
-                    onError={e => { e.currentTarget.style.display = "none"; }}/>
+                {item.imageUrl || item.image ? (
+                  <img
+                    src={
+                      (item.imageUrl || item.image).startsWith("data:") ||
+                      (item.imageUrl || item.image).startsWith("http")
+                        ? (item.imageUrl || item.image)
+                        : `${API_BASE}/${(item.imageUrl || item.image).replace(/^\/+/, "")}`
+                    }
+                    alt={item.name || item.title}
+                    onError={e => { e.currentTarget.style.display = "none"; }}
+                  />
                 ) : <div className="cart-item-placeholder"><Package size={25}/></div>}
                 <div className="cart-item-details">
                   <span>{item.category}</span>
-                  <h3>{item.name}</h3>
+                  <h3>{item.name || item.title}</h3>
                   <strong>{money(item.price)}</strong>
                   <div className="quantity-control">
                     <button onClick={() => decreaseQuantity(item._id)} aria-label="Decrease"><Minus size={15}/></button>

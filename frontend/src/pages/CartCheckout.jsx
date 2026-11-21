@@ -49,10 +49,16 @@ export function CartPage() {
           {cartItems.map(item => (
             <div className="cart-item" key={item._id}>
               <div className="cart-item-placeholder">
-                {item.imageUrl ? (
+                {item.imageUrl || item.image ? (
                   <img
-                    src={item.imageUrl.startsWith("http") ? item.imageUrl : `${API_BASE}/${item.imageUrl.replace(/^\/+/, "")}`}
-                    alt={item.name}
+                    src={
+                      (item.imageUrl || item.image).startsWith("data:") ||
+                      (item.imageUrl || item.image).startsWith("http")
+                        ? (item.imageUrl || item.image)
+                        : `${API_BASE}/${(item.imageUrl || item.image).replace(/^\/+/, "")}`
+                    }
+                    alt={item.name || item.title}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
                   />
                 ) : (
                   <Package size={30} />
@@ -61,7 +67,7 @@ export function CartPage() {
 
               <div className="cart-item-details">
                 <span>{item.category}</span>
-                <h3>{item.name}</h3>
+                <h3>{item.name || item.title}</h3>
                 <strong>₹{Number(item.price).toLocaleString("en-IN")} each</strong>
 
                 <div className="quantity-control">

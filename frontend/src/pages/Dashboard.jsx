@@ -127,10 +127,15 @@ export default function Dashboard() {
             <div className="recent-product-list">
               {[...products].slice(0, 5).map((product) => (
                 <div className="recent-product-row" key={product._id}>
-                  {product.imageUrl ? (
+                  {product.imageUrl || product.image ? (
                     <img
-                      src={`${API_BASE}${product.imageUrl}`}
-                      alt={product.name}
+                      src={
+                        (product.imageUrl || product.image).startsWith("data:") ||
+                        (product.imageUrl || product.image).startsWith("http")
+                          ? (product.imageUrl || product.image)
+                          : `${API_BASE}/${(product.imageUrl || product.image).replace(/^\/+/, "")}`
+                      }
+                      alt={product.name || product.title}
                     />
                   ) : (
                     <div className="recent-product-placeholder">
@@ -138,7 +143,7 @@ export default function Dashboard() {
                     </div>
                   )}
                   <div className="recent-product-info">
-                    <strong>{product.name}</strong>
+                    <strong>{product.name || product.title}</strong>
                     <span>{product.category}</span>
                   </div>
                   <div className="recent-product-price">

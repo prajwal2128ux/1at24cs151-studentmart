@@ -15,13 +15,32 @@ import { useProducts } from "../context/ProductContext";
 import { API_BASE } from "../api";
 import api from "../api";
 
+const CATEGORY_FALLBACK_IMAGES = {
+  Books: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80",
+  Gadgets: "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=600&auto=format&fit=crop&q=80",
+  Electronics: "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=600&auto=format&fit=crop&q=80",
+  "College Bags": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80",
+  Accessories: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80",
+  Uniform: "https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=600&auto=format&fit=crop&q=80",
+  Clothing: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&auto=format&fit=crop&q=80",
+  Stationery: "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=600&auto=format&fit=crop&q=80",
+  Other: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=600&auto=format&fit=crop&q=80"
+};
+
 // Convert stored image paths into browser URLs
-function getProductImageUrl(imageUrl) {
-  if (!imageUrl) return "";
+function getProductImageUrl(rawImage, category) {
+  if (!rawImage || typeof rawImage !== "string" || !rawImage.trim()) {
+    return CATEGORY_FALLBACK_IMAGES[category] || CATEGORY_FALLBACK_IMAGES.Other;
+  }
 
-  const image = String(imageUrl).trim();
+  const image = String(rawImage).trim();
 
-  if (image.startsWith("http://") || image.startsWith("https://")) {
+  if (
+    image.startsWith("data:") ||
+    image.startsWith("http://") ||
+    image.startsWith("https://") ||
+    image.startsWith("blob:")
+  ) {
     return image;
   }
 
@@ -29,9 +48,9 @@ function getProductImageUrl(imageUrl) {
 }
 
 // Product image with fallback
-function ProductThumbnail({ imageUrl }) {
+function ProductThumbnail({ imageUrl, image, category, name }) {
   const [failed, setFailed] = useState(false);
-  const imageSrc = getProductImageUrl(imageUrl);
+  const imageSrc = getProductImageUrl(imageUrl || image, category);
 
   if (!imageSrc || failed) {
     return (
@@ -45,7 +64,7 @@ function ProductThumbnail({ imageUrl }) {
   return (
     <img
       src={imageSrc}
-      alt="Product"
+      alt={name || "Product"}
       onError={() => setFailed(true)}
     />
   );
@@ -204,8 +223,13 @@ export function AdminProducts() {
                 <tr key={product._id}>
                   <td>
                     <div className="admin-table-product">
-                      <ProductThumbnail imageUrl={product.imageUrl} />
-                      <strong>{product.name}</strong>
+                      <ProductThumbnail
+                        imageUrl={product.imageUrl}
+                        image={product.image}
+                        category={product.category}
+                        name={product.name || product.title}
+                      />
+                      <strong>{product.name || product.title}</strong>
                     </div>
                   </td>
 

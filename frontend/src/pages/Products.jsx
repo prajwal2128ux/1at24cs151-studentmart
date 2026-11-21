@@ -105,9 +105,17 @@ export default function Products() {
             return (
               <article className="product-card" key={product._id}>
                 <div className="product-image-wrap">
-                  {product.imageUrl ? (
-                    <img src={`${API_BASE}${product.imageUrl}`} alt={product.name}
-                      onError={e => { e.currentTarget.style.display = "none"; }}/>
+                  {product.imageUrl || product.image ? (
+                    <img
+                      src={
+                        (product.imageUrl || product.image).startsWith("data:") ||
+                        (product.imageUrl || product.image).startsWith("http")
+                          ? (product.imageUrl || product.image)
+                          : `${API_BASE}/${(product.imageUrl || product.image).replace(/^\/+/, "")}`
+                      }
+                      alt={product.name || product.title}
+                      onError={e => { e.currentTarget.style.display = "none"; }}
+                    />
                   ) : <Package size={40}/>}
                   <span className={`stock-badge ${stock === 0 ? "stock-out" : stock <= 5 ? "stock-low" : "stock-good"}`}>
                     {stock === 0 ? "Out of stock" : stock <= 5 ? "Low stock" : "In stock"}
@@ -115,8 +123,8 @@ export default function Products() {
                 </div>
                 <div className="product-card-content">
                   <span className="product-category">{product.category}</span>
-                  <h3>{product.name}</h3>
-                  <p className="product-description">{product.description}</p>
+                  <h3>{product.name || product.title}</h3>
+                  <p className="product-description">{product.description || product.desc}</p>
                   <div className="product-price-row">
                     <strong>{money(product.price)}</strong><span>{stock} units</span>
                   </div>

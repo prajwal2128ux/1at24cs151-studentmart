@@ -73,7 +73,7 @@ export function MyOrders() {
               <div className="order-items-box">
                 {o.items.map((i, n) => (
                   <div className="order-line" key={n}>
-                    <span>{i.name} × {i.quantity}</span>
+                    <span>{i.name || i.title} × {i.quantity}</span>
                     <strong>₹{(i.price * i.quantity).toLocaleString("en-IN")}</strong>
                   </div>
                 ))}
@@ -169,7 +169,7 @@ export function AdminOrders() {
               <div className="order-items-box">
                 {o.items.map((i, n) => (
                   <div className="order-line" key={n}>
-                    <span>{i.name} × {i.quantity}</span>
+                    <span>{i.name || i.title} × {i.quantity}</span>
                     <strong>₹{(i.price * i.quantity).toLocaleString("en-IN")}</strong>
                   </div>
                 ))}
