@@ -1,91 +1,20 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
-const userSchema = new mongoose.Schema(
-  {
-    usn: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      uppercase: true,
-    },
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, maxlength: 80 },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password: { type: String, required: true, minlength: 8, select: false },
+  role: { type: String, enum: ["user", "admin"], default: "user" },
+}, { timestamps: true });
 
-    name: {
-      type: String,
-      default: "",
-      trim: true,
-    },
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+  this.password = await bcrypt.hash(this.password, 12);
+});
 
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      lowercase: true,
-    },
+userSchema.methods.comparePassword = function (candidate) {
+  return bcrypt.compare(candidate, this.password);
+};
 
-    password: {
-      type: String,
-      required: true,
-    },
-
-    role: {
-      type: String,
-      enum: ["customer", "admin"],
-      default: "customer",
-    },
-
-    phone: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    college: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    department: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    address: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    course: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    semester: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    year: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    dateOfBirth: {
-      type: String,
-      default: "",
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-// Export the User model
-module.exports = mongoose.model("User", userSchema);
+export default mongoose.model("User", userSchema);

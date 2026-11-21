@@ -1,101 +1,30 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-const orderItemSchema = new mongoose.Schema(
-  {
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-    },
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    price: {
-      type: Number,
-      required: true,
-    },
-    quantity: {
-      type: Number,
-      default: 1,
-      min: 1,
-    },
-    image: {
-      type: String,
-      default: "",
-    },
-    category: {
-      type: String,
-      default: "General",
-      trim: true,
-    },
+const orderSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  items: [{
+    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    name: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+    quantity: { type: Number, required: true, min: 1 },
+    imageUrl: { type: String, default: "" }
+  }],
+  shippingAddress: {
+    fullName: { type: String, required: true },
+    phone: { type: String, required: true },
+    addressLine: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    pincode: { type: String, required: true }
   },
-  { _id: false }
-);
-
-const orderSchema = new mongoose.Schema(
-  {
-    orderId: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
-    customer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    customerName: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    customerEmail: {
-      type: String,
-      default: "",
-      trim: true,
-      lowercase: true,
-    },
-    customerPhone: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    customerUsn: {
-      type: String,
-      default: "",
-      trim: true,
-      uppercase: true,
-    },
-    deliveryLocation: {
-      type: String,
-      default: "Campus Counter / Direct Handover",
-      trim: true,
-    },
-    deliveryNotes: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    items: [orderItemSchema],
-    totalAmount: {
-      type: Number,
-      required: true,
-    },
-    status: {
-      type: String,
-      enum: ["Pending", "Confirmed", "Ready for Pickup", "Completed", "Cancelled"],
-      default: "Pending",
-    },
-    paymentMethod: {
-      type: String,
-      default: "Campus Cash on Delivery / UPI on Handover",
-    },
+  paymentMethod: { type: String, enum: ["COD"], default: "COD" },
+  paymentStatus: { type: String, enum: ["PENDING", "PAID"], default: "PENDING" },
+  orderStatus: {
+    type: String,
+    enum: ["PLACED", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"],
+    default: "PLACED"
   },
-  {
-    timestamps: true,
-  }
-);
+  totalAmount: { type: Number, required: true, min: 0 }
+}, { timestamps: true });
 
-module.exports = mongoose.model("Order", orderSchema);
+export default mongoose.model("Order", orderSchema);

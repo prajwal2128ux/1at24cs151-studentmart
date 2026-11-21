@@ -1,281 +1,212 @@
-const express = require("express");
-const path = require("path");
-const multer = require("multer");
-const Product = require("../models/product");
-const { authenticate, isAdmin } = require("../middleware/auth");
+
+import express from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+import Product from "../models/Product.js";
+import { protect, requireAdmin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Configure Multer for disk storage of uploaded product images
-const uploadsDir = path.join(__dirname, "../uploads");
+// Resolve the correct server/uploads directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const uploadDir = path.resolve(__dirname, "../uploads");
+
+// Create uploads directory if it does not exist
+fs.mkdirSync(uploadDir, { recursive: true });
+
+console.log("Product upload directory:", uploadDir);
+
+// Multer storage configuration
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDir);
   },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname) || ".jpg";
-    cb(null, `prod_${Date.now()}_${Math.round(Math.random() * 1e9)}${ext}`);
-  },
-});
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-  fileFilter: (req, file, cb) => {
-    if (!file || file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files (PNG, JPG, JPEG, WEBP) are allowed."));
-    }
-  },
-});
+  filename: (_req, file, cb) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+    const uniqueName = `${Date.now()}-${Math.round(
+      Math.random() * 1e9
+    )}${extension}`;
 
-// Middleware that handles optional file upload without crashing if multipart is not sent
-const optionalUpload = (req, res, next) => {
-  const contentType = req.headers["content-type"] || "";
-  if (contentType.includes("multipart/form-data")) {
-    return upload.single("imageFile")(req, res, (err) => {
-      if (err) {
-        return res.status(400).json({ success: false, message: err.message });
-      }
-      next();
-    });
+    cb(null, uniqueName);
   }
-  next();
+});
+
+// Validate image file types
+const fileFilter = (_req, file, cb) => {
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only JPG, PNG, and WEBP images are allowed."));
+  }
 };
 
-const defaultSeedProducts = [
-  {
-    title: "Casio FX-991CW Scientific Calculator",
-    price: 1250,
-    stock: 15,
-    category: "Gadgets",
-    desc: "Advanced engineering calculator with solar + battery backup, authorized for exams.",
-    image: "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=600&auto=format&fit=crop&q=80",
-  },
-  {
-    title: "Campus Waterproof Laptop Backpack",
-    price: 899,
-    stock: 20,
-    category: "College Bags",
-    desc: "Durable 25L backpack with 15.6 inch padded laptop sleeve and water bottle holder.",
-    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80",
-  },
-  {
-    title: "Engineering Drawing & Drafting Kit",
-    price: 450,
-    stock: 30,
-    category: "Stationery",
-    desc: "Complete mini-drafter, compass, set squares, and scale sheet clips in travel case.",
-    image: "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=600&auto=format&fit=crop&q=80",
-  },
-  {
-    title: "Official StudentMart Campus Hoodie",
-    price: 999,
-    stock: 25,
-    category: "Uniform",
-    desc: "Premium fleece pullover college hoodie with embroidered campus crest.",
-    image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&auto=format&fit=crop&q=80",
-  },
-];
+// Multer upload configuration
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5 MB
+  }
+});
 
-/* Helper to format product consistently */
-function formatProduct(p) {
-  return {
-    id: p._id.toString(),
-    _id: p._id.toString(),
-    title: p.title,
-    name: p.title,
-    price: p.price,
-    stock: p.stock !== undefined ? p.stock : 20,
-    category: p.category || "Books",
-    desc: p.desc || "",
-    description: p.desc || "",
-    image: p.image || "",
-    createdBy: p.createdBy,
-    createdAt: p.createdAt,
-    updatedAt: p.updatedAt,
-  };
-}
+// Helper to delete an image safely
+const deleteImage = (imageUrl) => {
+  if (!imageUrl || !imageUrl.startsWith("/uploads/")) {
+    return;
+  }
 
-/* =========================================
-   GET ALL PRODUCTS
-   GET /api/products or GET /api/admin/products
-   ========================================= */
-router.get("/", async (req, res) => {
+  const filename = path.basename(imageUrl);
+  const imagePath = path.join(uploadDir, filename);
+
+  if (fs.existsSync(imagePath)) {
+    fs.unlinkSync(imagePath);
+  }
+};
+
+// GET all products (customer and admin)
+router.get("/", async (_req, res, next) => {
   try {
-    let count = await Product.countDocuments();
-    if (count === 0) {
-      await Product.insertMany(defaultSeedProducts);
-    }
-
     const products = await Product.find().sort({ createdAt: -1 });
-    return res.status(200).json({
-      success: true,
-      products: products.map(formatProduct),
-    });
+    res.json(products);
   } catch (error) {
-    console.error("GET PRODUCTS ERROR:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Unable to retrieve products.",
-    });
+    next(error);
   }
 });
 
-/* =========================================
-   CREATE PRODUCT (ADMIN ONLY)
-   POST /api/products or POST /api/admin/products
-   Supports:
-   - JSON with Base64 data URI
-   - JSON with image web URL
-   - Multipart FormData with imageFile
-   ========================================= */
-router.post("/", authenticate, isAdmin, optionalUpload, async (req, res) => {
+// GET single product
+router.get("/:id", async (req, res, next) => {
   try {
-    const title = (req.body.title || req.body.name || "").trim();
-    const rawPrice = req.body.price;
-    const stock = req.body.stock !== undefined && !isNaN(Number(req.body.stock)) ? Number(req.body.stock) : 20;
-    const category = (req.body.category || "Books").trim();
-    const desc = (req.body.desc || req.body.description || "").trim();
+    const product = await Product.findById(req.params.id);
 
-    // Resolve image from file upload or string/URL
-    let image = "";
-    if (req.file) {
-      image = `/uploads/${req.file.filename}`;
-    } else if (req.body.image) {
-      image = req.body.image.trim();
-    }
-
-    if (!title) {
-      return res.status(400).json({
-        success: false,
-        message: "Product title/name is required.",
-      });
-    }
-
-    if (rawPrice === undefined || rawPrice === "" || isNaN(Number(rawPrice))) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid price is required.",
-      });
-    }
-
-    const price = Number(rawPrice);
-    if (price < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Price cannot be negative.",
-      });
-    }
-
-    const product = new Product({
-      title,
-      price,
-      stock,
-      category,
-      desc: desc || "Available for campus pickup.",
-      image: image || "",
-      createdBy: req.user._id,
-    });
-
-    await product.save();
-
-    return res.status(201).json({
-      success: true,
-      message: `Product "${title}" added successfully.`,
-      product: formatProduct(product),
-    });
-  } catch (error) {
-    console.error("CREATE PRODUCT ERROR:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Server error creating product.",
-    });
-  }
-});
-
-/* =========================================
-   UPDATE PRODUCT (ADMIN ONLY)
-   PUT /api/products/:id
-   ========================================= */
-router.put("/:id", authenticate, isAdmin, optionalUpload, async (req, res) => {
-  try {
-    const title = req.body.title || req.body.name;
-    const rawPrice = req.body.price;
-    const stock = req.body.stock;
-    const category = req.body.category;
-    const desc = req.body.desc !== undefined ? req.body.desc : req.body.description;
-
-    let image = undefined;
-    if (req.file) {
-      image = `/uploads/${req.file.filename}`;
-    } else if (req.body.image !== undefined) {
-      image = req.body.image.trim();
-    }
-
-    const updates = {};
-    if (title !== undefined) updates.title = title.trim();
-    if (rawPrice !== undefined && !isNaN(Number(rawPrice))) updates.price = Number(rawPrice);
-    if (stock !== undefined && !isNaN(Number(stock))) updates.stock = Number(stock);
-    if (category !== undefined) updates.category = category.trim();
-    if (desc !== undefined) updates.desc = desc.trim();
-    if (image !== undefined) updates.image = image;
-
-    const updated = await Product.findByIdAndUpdate(
-      req.params.id,
-      updates,
-      { new: true, runValidators: true }
-    );
-
-    if (!updated) {
+    if (!product) {
       return res.status(404).json({
-        success: false,
-        message: "Product not found.",
+        message: "Product not found"
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: `Product "${updated.title}" updated successfully.`,
-      product: formatProduct(updated),
-    });
+    res.json(product);
   } catch (error) {
-    console.error("UPDATE PRODUCT ERROR:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Server error updating product.",
-    });
+    next(error);
   }
 });
 
-/* =========================================
-   DELETE PRODUCT (ADMIN ONLY)
-   DELETE /api/products/:id
-   ========================================= */
-router.delete("/:id", authenticate, isAdmin, async (req, res) => {
-  try {
-    const deleted = await Product.findByIdAndDelete(req.params.id);
+// ADD product (Admin only)
+router.post(
+  "/",
+  protect,
+  requireAdmin,
+  upload.single("image"),
+  async (req, res, next) => {
+    try {
+      const { name, description, price, category, stock } = req.body;
 
-    if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found.",
+      if (!name || !description || !price || !category) {
+        if (req.file) deleteImage(`/uploads/${req.file.filename}`);
+
+        return res.status(400).json({
+          message: "Please provide all required product details."
+        });
+      }
+
+      const product = await Product.create({
+        name,
+        description,
+        price: Number(price),
+        category,
+        stock: Number(stock || 0),
+        imageUrl: req.file ? `/uploads/${req.file.filename}` : ""
       });
+
+      res.status(201).json({
+        message: "Product added successfully",
+        product
+      });
+    } catch (error) {
+      if (req.file) deleteImage(`/uploads/${req.file.filename}`);
+      next(error);
     }
-
-    return res.status(200).json({
-      success: true,
-      message: `Product "${deleted.title}" deleted successfully.`,
-      productId: req.params.id,
-    });
-  } catch (error) {
-    console.error("DELETE PRODUCT ERROR:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Server error deleting product.",
-    });
   }
-});
+);
 
-module.exports = router;
+// UPDATE product (Admin only)
+router.put(
+  "/:id",
+  protect,
+  requireAdmin,
+  upload.single("image"),
+  async (req, res, next) => {
+    try {
+      const product = await Product.findById(req.params.id);
+
+      if (!product) {
+        if (req.file) deleteImage(`/uploads/${req.file.filename}`);
+
+        return res.status(404).json({
+          message: "Product not found"
+        });
+      }
+
+      const { name, description, price, category, stock } = req.body;
+
+      if (name !== undefined) product.name = name;
+      if (description !== undefined) product.description = description;
+      if (price !== undefined) product.price = Number(price);
+      if (category !== undefined) product.category = category;
+      if (stock !== undefined) product.stock = Number(stock);
+
+      // Replace image only when a new image is uploaded
+      if (req.file) {
+        deleteImage(product.imageUrl);
+        product.imageUrl = `/uploads/${req.file.filename}`;
+      }
+
+      await product.save();
+
+      res.json({
+        message: "Product updated successfully",
+        product
+      });
+    } catch (error) {
+      if (req.file) deleteImage(`/uploads/${req.file.filename}`);
+      next(error);
+    }
+  }
+);
+
+// DELETE product (Admin only)
+router.delete(
+  "/:id",
+  protect,
+  requireAdmin,
+  async (req, res, next) => {
+    try {
+      const product = await Product.findById(req.params.id);
+
+      if (!product) {
+        return res.status(404).json({
+          message: "Product not found"
+        });
+      }
+
+      deleteImage(product.imageUrl);
+
+      await product.deleteOne();
+
+      res.json({
+        message: "Product deleted successfully"
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+export default router;

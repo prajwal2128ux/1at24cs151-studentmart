@@ -1,498 +1,59 @@
-const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-
-const User = require("../models/user");
+import express from "express";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+import { protect, cookieOptions } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/* =========================================
-   REGISTER
-   POST /api/auth/register
-   ========================================= */
-
-router.post("/register", async (req, res) => {
-  try {
-    const {
-      usn,
-      email,
-      password,
-      role,
-      name,
-      phone,
-      college,
-      course,
-      department,
-      address,
-      semester,
-      year,
-      dateOfBirth,
-    } = req.body;
-
-    if (!usn || !email || !password) {
-      return res.status(400).json({
-        message: "USN, email and password are required.",
-      });
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      return res.status(400).json({
-        message: "Please enter a valid email address.",
-      });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({
-        message: "Password must be at least 6 characters.",
-      });
-    }
-
-    const cleanUSN = usn.trim().toUpperCase();
-    const cleanEmail = email.trim().toLowerCase();
-
-    const existingUSN = await User.findOne({
-      usn: cleanUSN,
-    });
-
-    if (existingUSN) {
-      return res.status(400).json({
-        message: "This USN is already registered.",
-      });
-    }
-
-    const existingEmail = await User.findOne({
-      email: cleanEmail,
-    });
-
-    if (existingEmail) {
-      return res.status(400).json({
-        message: "This email is already registered.",
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(
-      password,
-      10
-    );
-
-    const requestedRole = (role || "").trim().toLowerCase();
-    const isExplicitAdmin =
-      requestedRole === "admin" ||
-      cleanUSN.startsWith("ADM") ||
-      cleanUSN.startsWith("ADMIN") ||
-      cleanEmail === "admin@studentmart.com";
-
-    const userRole = isExplicitAdmin ? "admin" : "customer";
-
-    const user = new User({
-      usn: cleanUSN,
-      email: cleanEmail,
-      password: hashedPassword,
-      role: userRole,
-      name: name ? name.trim() : "",
-      phone: phone ? phone.trim() : "",
-      college: college ? college.trim() : "",
-      course: course ? course.trim() : "",
-      department: department ? department.trim() : (course ? course.trim() : ""),
-      address: address ? address.trim() : (college ? college.trim() : ""),
-      semester: semester ? semester.trim() : "",
-      year: year ? year.trim() : "",
-      dateOfBirth: dateOfBirth || "",
-    });
-
-    await user.save();
-
-    return res.status(201).json({
-      message: "Registration successful.",
-    });
-  } catch (error) {
-    console.error("REGISTER ERROR:", error);
-
-    return res.status(500).json({
-      message: "Server error during registration.",
-    });
-  }
-});
-
-/* =========================================
-   LOGIN
-   POST /api/auth/login
-   ========================================= */
-
-router.post("/login", async (req, res) => {
-  try {
-    const { email, password, role } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        message: "Email and password are required.",
-      });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    const user = await User.findOne({
-      email: cleanEmail,
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        message: "Invalid email or password.",
-      });
-    }
-
-    const passwordMatch = await bcrypt.compare(
-      password,
-      user.password
-    );
-
-    if (!passwordMatch) {
-      return res.status(401).json({
-        message: "Invalid email or password.",
-      });
-    }
-
-    // Determine the user's account role in database
-    const dbRole = user.role || "customer";
-    const requestedTab = (role || "").trim().toLowerCase();
-
-    let userRole = dbRole;
-
-    if (requestedTab === "admin") {
-      // User is attempting to log into Store Admin portal
-      const hasAdminPrivilege =
-        dbRole === "admin" ||
-        (user.usn && (user.usn.startsWith("ADM") || user.usn.startsWith("ADMIN"))) ||
-        cleanEmail === "admin@studentmart.com";
-
-      if (!hasAdminPrivilege) {
-        return res.status(403).json({
-          message: "Access denied. This is a Student account. Please switch to the 'Student' tab to sign in.",
-        });
-      }
-
-      userRole = "admin";
-      if (user.role !== "admin") {
-        user.role = "admin";
-        await user.save();
-      }
-    } else {
-      // User is logging in via "Student" tab (role === "customer" or default)
-      // Always treat active session as student/customer
-      userRole = "customer";
-    }
-
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        role: userRole,
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "1d",
-      }
-    );
-
-    return res.status(200).json({
-      message: "Login successful.",
-
-      token,
-
-      user: {
-        id: user._id,
-        name: user.name,
-        usn: user.usn,
-        email: user.email,
-        role: userRole,
-        phone: user.phone,
-        college: user.college,
-        course: user.course,
-        department: user.department || user.course || "",
-        address: user.address || user.college || "",
-        semester: user.semester,
-        year: user.year,
-        dateOfBirth: user.dateOfBirth,
-      },
-    });
-  } catch (error) {
-    console.error("LOGIN ERROR:", error);
-
-    return res.status(500).json({
-      message: "Server error during login.",
-    });
-  }
-});
-
-/* =========================================
-   AUTHENTICATION & AUTHORIZATION MIDDLEWARES
-   ========================================= */
-
-async function authenticate(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader) {
-      return res.status(401).json({
-        message: "Authentication required.",
-      });
-    }
-
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
-      : null;
-
-    if (!token) {
-      return res.status(401).json({
-        message: "Invalid token.",
-      });
-    }
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
-
-    const user = await User.findById(
-      decoded.userId
-    ).select("-password");
-
-    if (!user) {
-      return res.status(401).json({
-        message: "User not found.",
-      });
-    }
-
-    req.user = user;
-
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      message: "Invalid or expired token.",
-    });
-  }
+function issueToken(user, res) {
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  res.cookie("studentmart_token", token, cookieOptions());
 }
 
-function isAdmin(req, res, next) {
-  if (!req.user) {
-    return res.status(401).json({
-      message: "Authentication required.",
+router.post("/register", async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name?.trim() || !email?.trim() || !password) {
+      return res.status(400).json({ message: "Name, email and password are required." });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: "Password must contain at least 8 characters." });
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    if (await User.exists({ email: normalizedEmail })) {
+      return res.status(409).json({ message: "An account with this email already exists." });
+    }
+
+    // Public registration can ONLY create a normal user. Never accept a role from the client.
+    const user = await User.create({ name: name.trim(), email: normalizedEmail, password, role: "user" });
+    issueToken(user, res);
+    res.status(201).json({
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
     });
-  }
+  } catch (error) { next(error); }
+});
 
-  if (req.user.role !== "admin") {
-    return res.status(403).json({
-      message: "Access denied. Admin privileges required.",
-    });
-  }
+router.post("/login", async (req, res, next) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+    const password = req.body.password;
+    if (!email || !password) return res.status(400).json({ message: "Email and password are required." });
 
-  next();
-}
-
-/* =========================================
-   GET PROFILE
-   GET /api/auth/profile
-   ========================================= */
-
-router.get(
-  "/profile",
-  authenticate,
-  async (req, res) => {
-    try {
-      return res.status(200).json({
-        user: req.user,
-      });
-    } catch (error) {
-      console.error("PROFILE ERROR:", error);
-
-      return res.status(500).json({
-        message: "Unable to load profile.",
-      });
+    const user = await User.findOne({ email }).select("+password");
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(401).json({ message: "Invalid email or password." });
     }
-  }
-);
 
-/* =========================================
-   UPDATE PROFILE
-   PUT /api/auth/profile
-   ========================================= */
+    issueToken(user, res);
+    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (error) { next(error); }
+});
 
-router.put(
-  "/profile",
-  authenticate,
-  async (req, res) => {
-    try {
-      const {
-        name,
-        usn,
-        email,
-        phone,
-        college,
-        course,
-        department,
-        address,
-        semester,
-        year,
-        dateOfBirth,
-      } = req.body;
+router.post("/logout", (req, res) => {
+  res.clearCookie("studentmart_token", { ...cookieOptions(), maxAge: undefined });
+  res.json({ message: "Logged out successfully." });
+});
 
-      const targetUSN = usn ? usn.trim().toUpperCase() : req.user.usn;
-      const targetEmail = email ? email.trim().toLowerCase() : req.user.email;
+router.get("/me", protect, (req, res) => res.json({ user: req.user }));
 
-      if (!targetUSN || !targetEmail) {
-        return res.status(400).json({
-          message: "USN and email are required.",
-        });
-      }
-
-      /* Check duplicate USN */
-      const existingUSN = await User.findOne({
-        usn: targetUSN,
-        _id: {
-          $ne: req.user._id,
-        },
-      });
-
-      if (existingUSN) {
-        return res.status(400).json({
-          message: "This USN is already in use.",
-        });
-      }
-
-      /* Check duplicate email */
-      const existingEmail = await User.findOne({
-        email: targetEmail,
-        _id: {
-          $ne: req.user._id,
-        },
-      });
-
-      if (existingEmail) {
-        return res.status(400).json({
-          message: "This email is already in use.",
-        });
-      }
-
-      const updatedUser = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-          name: name !== undefined ? name.trim() : req.user.name,
-          usn: targetUSN,
-          email: targetEmail,
-          phone: phone !== undefined ? phone.trim() : req.user.phone,
-          college: college !== undefined ? college.trim() : req.user.college,
-          course: course !== undefined ? course.trim() : req.user.course,
-          department: department !== undefined ? department.trim() : (course !== undefined ? course.trim() : req.user.department),
-          address: address !== undefined ? address.trim() : (college !== undefined ? college.trim() : req.user.address),
-          semester: semester !== undefined ? semester.trim() : req.user.semester,
-          year: year !== undefined ? year.trim() : req.user.year,
-          dateOfBirth: dateOfBirth !== undefined ? dateOfBirth : req.user.dateOfBirth,
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      ).select("-password");
-
-      return res.status(200).json({
-        message: "Profile updated successfully.",
-        user: updatedUser,
-      });
-    } catch (error) {
-      console.error(
-        "UPDATE PROFILE ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        message: "Unable to update profile.",
-      });
-    }
-  }
-);
-
-/* =========================================
-   CHANGE PASSWORD
-   PUT /api/auth/change-password
-   ========================================= */
-
-router.all(
-  "/change-password",
-  authenticate,
-  async (req, res) => {
-    try {
-      const {
-        currentPassword,
-        newPassword,
-      } = req.body;
-
-      if (
-        !currentPassword ||
-        !newPassword
-      ) {
-        return res.status(400).json({
-          message:
-            "Current password and new password are required.",
-        });
-      }
-
-      if (newPassword.length < 6) {
-        return res.status(400).json({
-          message:
-            "New password must be at least 6 characters.",
-        });
-      }
-
-      const user = await User.findById(
-        req.user._id
-      );
-
-      if (!user) {
-        return res.status(404).json({
-          message: "User not found.",
-        });
-      }
-
-      const passwordMatch =
-        await bcrypt.compare(
-          currentPassword,
-          user.password
-        );
-
-      if (!passwordMatch) {
-        return res.status(400).json({
-          message:
-            "Current password is incorrect.",
-        });
-      }
-
-      user.password =
-        await bcrypt.hash(
-          newPassword,
-          10
-        );
-
-      await user.save();
-
-      return res.status(200).json({
-        message:
-          "Password changed successfully.",
-      });
-    } catch (error) {
-      console.error(
-        "CHANGE PASSWORD ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        message:
-          "Unable to change password.",
-      });
-    }
-  }
-);
-
-router.authenticate = authenticate;
-router.isAdmin = isAdmin;
-
-module.exports = router;
+export default router;

@@ -1,97 +1,150 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const path = require("path");
-const fs = require("fs");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
-require("dotenv").config(); // fallback to process.cwd() .env if present
+
+import "dotenv/config";
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
+import path from "path";
+import { fileURLToPath } from "url";
+
+import authRoutes from "./routes/authRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+
+// Resolve the server folder reliably
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Upload images inside server/uploads
+const uploadDir = path.join(__dirname, "uploads");
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Validate environment variables
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  throw new Error(
+    "JWT_SECRET must be set to a random value of at least 32 characters."
+  );
 }
 
-// Enable CORS for all incoming requests (Vite dev server, localhost, 127.0.0.1)
+if (!process.env.MONGO_URI) {
+  throw new Error("MONGO_URI is missing.");
+}
+
+if (!process.env.CLIENT_URL) {
+  throw new Error("CLIENT_URL is missing.");
+}
+
+// Security middleware
+
 app.use(
-  cors({
-    origin: true,
-    credentials: true,
+  helmet({
+    crossOriginResourcePolicy: {
+      policy: "cross-origin"
+    }
   })
 );
 
-// Support large Base64 image payloads up to 50MB
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Serve static uploads
-app.use("/uploads", express.static(uploadsDir));
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true
+  })
+);
 
-// Health check
-app.get("/", (req, res) => {
-  res.json({ message: "StudentMart API is running" });
-});
+// Body parsing
+app.use(express.json({ limit: "1mb" }));
+app.use(cookieParser());
 
-// Authentication routes
-app.use("/api/auth", require("./routes/authRoutes"));
+// Serve uploaded product images
+app.use(
+  "/uploads",
+  express.static(uploadDir, {
+    dotfiles: "deny",
+    index: false
+  })
+);
 
-// Product routes (mounted at both /api/products and /api/admin/products for full compatibility)
-const productRouter = require("./routes/productRoutes");
-app.use("/api/products", productRouter);
-app.use("/api/admin/products", productRouter);
-
-// Order routes (Customer orders and Admin order management)
-const orderRouter = require("./routes/orderRoutes");
-app.use("/api/orders", orderRouter);
-
-// Catch-all 404 handler for all unmatched API endpoints (ALWAYS JSON, never HTML)
-app.use("/api", (req, res) => {
-  return res.status(404).json({
-    success: false,
-    message: `API endpoint not found: ${req.method} ${req.originalUrl}`,
-  });
-});
-
-// Global JSON error handler (handles Multer errors, body-parser limit 413, JSON parse errors)
-app.use((err, req, res, next) => {
-  console.error("Global Error Handler caught:", err.message);
-  const status =
-    err.status ||
-    err.statusCode ||
-    (err.type === "entity.too.large" || err.code === "LIMIT_FILE_SIZE" ? 413 : 500);
-
-  return res.status(status).json({
-    success: false,
-    message:
-      status === 413
-        ? "Uploaded image is too large. Please use an image file under 10MB or paste an image URL."
-        : err.message || "A server error occurred.",
-  });
-});
-
-const PORT = process.env.PORT || 5001;
-
-async function startServer() {
-  try {
-    if (!process.env.MONGO_URI) {
-      throw new Error("MONGO_URI is missing from server/.env");
-    }
-
-    if (!process.env.JWT_SECRET) {
-      throw new Error("JWT_SECRET is missing from server/.env");
-    }
-
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB connected");
-
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running at http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error("Backend startup failed:", error.message);
+// Authentication rate limiter
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    message: "Too many attempts. Try again later."
   }
-}
+});
 
-startServer();
+// API health check
+app.get("/", (_req, res) => {
+  res.json({
+    message: "StudentMart API is running."
+  });
+});
+
+// API routes
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/admin", adminRoutes);
+
+// Error handling
+app.use((err, _req, res, _next) => {
+  console.error(err);
+
+  if (err.name === "CastError") {
+    return res.status(400).json({
+      message: "Invalid ID."
+    });
+  }
+
+  if (err.name === "ValidationError") {
+    return res.status(400).json({
+      message: err.message
+    });
+  }
+
+  if (err.code === 11000) {
+    return res.status(409).json({
+      message: "That email is already registered."
+    });
+  }
+
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({
+      message: "Image must be 5 MB or smaller."
+    });
+  }
+
+  if (err.message?.includes("Only JPG")) {
+    return res.status(400).json({
+      message: err.message
+    });
+  }
+
+  res.status(err.status || 500).json({
+    message: err.message || "Server error."
+  });
+});
+
+// Connect MongoDB and start server
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("MongoDB connected successfully.");
+    console.log("Image directory:", uploadDir);
+
+    app.listen(PORT, () => {
+      console.log(`StudentMart API running on port ${PORT}`);
+    });
+  })
+  .catch(error => {
+    console.error("MongoDB connection failed:", error.message);
+    process.exit(1);
+  });
