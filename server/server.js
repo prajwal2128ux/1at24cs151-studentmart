@@ -111,8 +111,19 @@ app.use((err, _req, res, _next) => {
   }
 
   if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern || err.keyValue || {})[0] || "";
+    if (field === "email") {
+      return res.status(409).json({
+        message: "That email is already registered."
+      });
+    }
+    if (field === "usn") {
+      return res.status(409).json({
+        message: "An account with this USN is already registered."
+      });
+    }
     return res.status(409).json({
-      message: "That email is already registered."
+      message: `A record with this ${field || "information"} already exists.`
     });
   }
 

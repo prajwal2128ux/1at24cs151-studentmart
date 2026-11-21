@@ -7,7 +7,10 @@ const orderSchema = new mongoose.Schema({
   customerEmail: { type: String, default: "" },
   customerPhone: { type: String, default: "" },
   customerUsn: { type: String, default: "" },
-  orderId: { type: String, default: "" },
+  orderId: {
+    type: String,
+    default: () => `SM-${Date.now().toString().slice(-4)}${Math.floor(100 + Math.random() * 900)}`
+  },
   deliveryLocation: { type: String, default: "" },
   deliveryNotes: { type: String, default: "" },
   items: [{
