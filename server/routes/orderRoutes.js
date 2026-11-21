@@ -36,20 +36,29 @@ router.post("/", protect, async (req, res, next) => {
       totalAmount += lineTotal;
       orderItems.push({
         product: product._id,
-        name: product.name,
+        name: product.name || product.title || "Campus Item",
+        title: product.title || product.name || "Campus Item",
         price: product.price,
         quantity: Number(requested.quantity),
-        imageUrl: product.imageUrl
+        imageUrl: product.imageUrl || product.image || "",
+        image: product.image || product.imageUrl || "",
+        category: product.category || "Other"
       });
     }
 
     const order = await Order.create({
       user: req.user._id,
+      customer: req.user._id,
+      customerName: req.user.name || shippingAddress.fullName || "Customer",
+      customerEmail: req.user.email || "",
+      customerPhone: shippingAddress.phone || "",
+      orderId: `SM-${Math.floor(1000 + Math.random() * 9000)}`,
       items: orderItems,
       shippingAddress,
-      paymentMethod: "COD",
+      paymentMethod: "Campus Cash on Delivery (COD)",
       paymentStatus: "PENDING",
       orderStatus: "PLACED",
+      status: "Pending",
       totalAmount
     });
     res.status(201).json(order);
