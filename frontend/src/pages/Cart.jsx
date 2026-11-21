@@ -35,6 +35,7 @@ export default function Cart() {
               <div className="cart-item" key={item._id}>
                 {item.imageUrl || item.image ? (
                   <img
+                    className="cart-item-img"
                     src={
                       (item.imageUrl || item.image).startsWith("data:") ||
                       (item.imageUrl || item.image).startsWith("http")

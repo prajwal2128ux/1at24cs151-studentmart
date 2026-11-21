@@ -48,9 +48,10 @@ export function CartPage() {
 
           {cartItems.map(item => (
             <div className="cart-item" key={item._id}>
-              <div className="cart-item-placeholder">
+              <div className="cart-item-placeholder cart-item-image-wrap">
                 {item.imageUrl || item.image ? (
                   <img
+                    className="cart-item-img"
                     src={
                       (item.imageUrl || item.image).startsWith("data:") ||
                       (item.imageUrl || item.image).startsWith("http")
