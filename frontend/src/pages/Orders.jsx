@@ -57,14 +57,16 @@ export function MyOrders() {
         </div>
       ) : (
         <div className="order-list">
-          {orders.map(o => (
-            <article className="order-card" key={o._id}>
-              <div className="order-card-head">
-                <strong>Order #{o._id.slice(-8).toUpperCase()}</strong>
-                <span className={`role-pill status-${(o.orderStatus || "").toLowerCase()}`}>
-                  {o.orderStatus}
-                </span>
-              </div>
+          {orders.map(o => {
+            const st = (o.orderStatus || o.status || "PLACED").toUpperCase();
+            return (
+              <article className="order-card" key={o._id}>
+                <div className="order-card-head">
+                  <strong>Order #{o._id.slice(-8).toUpperCase()}</strong>
+                  <span className={`role-pill status-${st.toLowerCase()}`}>
+                    {st}
+                  </span>
+                </div>
 
               <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <Calendar size={13} /> {formatDate(o.createdAt)}
@@ -84,7 +86,8 @@ export function MyOrders() {
                 <strong>₹{o.totalAmount.toLocaleString("en-IN")}</strong>
               </div>
             </article>
-          ))}
+          );
+        })}
         </div>
       )}
     </div>
@@ -110,6 +113,7 @@ export function AdminOrders() {
 
   const update = async (id, orderStatus) => {
     try {
+      setError("");
       await api.patch(`/orders/${id}/status`, { orderStatus });
       load();
     } catch (e) {
@@ -153,49 +157,56 @@ export function AdminOrders() {
         </div>
       ) : (
         <div className="order-list">
-          {orders.map(o => (
-            <article className="order-card" key={o._id}>
-              <div className="order-card-head">
-                <strong>#{o._id.slice(-8).toUpperCase()} · {o.user?.name || "Customer"}</strong>
-                <span className={`role-pill status-${(o.orderStatus || "").toLowerCase()}`}>
-                  {o.orderStatus}
-                </span>
-              </div>
+          {orders.map(o => {
+            const currentStatus = (o.orderStatus || o.status || "PLACED").toUpperCase();
+            const customerName = o.user?.name || o.customerName || "Customer";
+            const customerEmail = o.user?.email || o.customerEmail || "";
 
-              <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span>{o.user?.email}</span> • <span>{formatDate(o.createdAt)}</span>
-              </p>
-
-              <div className="order-items-box">
-                {o.items.map((i, n) => (
-                  <div className="order-line" key={n}>
-                    <span>{i.name || i.title} × {i.quantity}</span>
-                    <strong>₹{(i.price * i.quantity).toLocaleString("en-IN")}</strong>
-                  </div>
-                ))}
-              </div>
-
-              <div className="order-card-foot">
-                <div>
-                  <small style={{ display: "block", color: "var(--text-muted)", fontSize: "11px" }}>Total Amount</small>
-                  <strong>₹{o.totalAmount.toLocaleString("en-IN")} (COD)</strong>
+            return (
+              <article className="order-card" key={o._id}>
+                <div className="order-card-head">
+                  <strong>#{o._id.slice(-8).toUpperCase()} · {customerName}</strong>
+                  <span className={`role-pill status-${currentStatus.toLowerCase()}`}>
+                    {currentStatus}
+                  </span>
                 </div>
 
-                <select 
-                  value={o.orderStatus} 
-                  onChange={e => update(o._id, e.target.value)} 
-                  disabled={["DELIVERED", "CANCELLED"].includes(o.orderStatus)}
-                >
-                  <option value="PLACED">Placed</option>
-                  <option value="CONFIRMED">Confirmed</option>
-                  <option value="PACKED">Packed</option>
-                  <option value="SHIPPED">Shipped</option>
-                  <option value="DELIVERED">Delivered</option>
-                  <option value="CANCELLED">Cancel order</option>
-                </select>
-              </div>
-            </article>
-          ))}
+                <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  {customerEmail && <span>{customerEmail} • </span>}
+                  <span>{formatDate(o.createdAt)}</span>
+                </p>
+
+                <div className="order-items-box">
+                  {o.items.map((i, n) => (
+                    <div className="order-line" key={n}>
+                      <span>{i.name || i.title} × {i.quantity}</span>
+                      <strong>₹{(i.price * i.quantity).toLocaleString("en-IN")}</strong>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="order-card-foot">
+                  <div>
+                    <small style={{ display: "block", color: "var(--text-muted)", fontSize: "11px" }}>Total Amount</small>
+                    <strong>₹{o.totalAmount.toLocaleString("en-IN")} (COD)</strong>
+                  </div>
+
+                  <select 
+                    value={currentStatus} 
+                    onChange={e => update(o._id, e.target.value)} 
+                    disabled={["DELIVERED", "CANCELLED"].includes(currentStatus)}
+                  >
+                    <option value="PLACED">Placed</option>
+                    <option value="CONFIRMED">Confirmed</option>
+                    <option value="PACKED">Packed</option>
+                    <option value="SHIPPED">Shipped</option>
+                    <option value="DELIVERED">Delivered</option>
+                    <option value="CANCELLED">Cancel order</option>
+                  </select>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </div>

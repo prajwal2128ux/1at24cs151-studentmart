@@ -63,35 +63,59 @@ router.post("/", protect, async (req, res, next) => {
 
 router.get("/mine", protect, async (req, res, next) => {
   try {
-    res.json(await Order.find({ user: req.user._id }).sort({ createdAt: -1 }));
+    const orders = await Order.find({
+      $or: [{ user: req.user._id }, { customer: req.user._id }]
+    }).sort({ createdAt: -1 });
+    res.json(orders);
   } catch (error) { next(error); }
 });
 
 router.get("/", protect, requireAdmin, async (_req, res, next) => {
   try {
-    res.json(await Order.find().populate("user", "name email").sort({ createdAt: -1 }));
+    const orders = await Order.find().populate("user", "name email").sort({ createdAt: -1 });
+    res.json(orders);
   } catch (error) { next(error); }
 });
 
 router.patch("/:id/status", protect, requireAdmin, async (req, res, next) => {
   try {
-    const allowed = ["CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"];
-    if (!allowed.includes(req.body.orderStatus)) {
+    const rawStatus = String(req.body.orderStatus || req.body.status || "").toUpperCase();
+    const allowed = ["PLACED", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"];
+    if (!allowed.includes(rawStatus)) {
       return res.status(400).json({ message: "Invalid order status." });
     }
+
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: "Order not found." });
-    if (order.orderStatus === "CANCELLED" || order.orderStatus === "DELIVERED") {
+
+    const currentStatus = String(order.orderStatus || order.status || "").toUpperCase();
+    if (currentStatus === "CANCELLED" || currentStatus === "DELIVERED" || currentStatus === "COMPLETED") {
       return res.status(409).json({ message: "This order can no longer be changed." });
     }
-    if (req.body.orderStatus === "CANCELLED") {
-      for (const item of order.items) {
-        await Product.updateOne({ _id: item.product }, { $inc: { stock: item.quantity } });
+
+    if (rawStatus === "CANCELLED" && currentStatus !== "CANCELLED") {
+      if (Array.isArray(order.items)) {
+        for (const item of order.items) {
+          const prodId = item.product || item._id;
+          if (prodId) {
+            await Product.updateOne({ _id: prodId }, { $inc: { stock: item.quantity || 1 } }).catch(() => {});
+          }
+        }
       }
     }
-    order.orderStatus = req.body.orderStatus;
-    await order.save();
-    res.json(order);
+
+    const updated = await Order.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          orderStatus: rawStatus,
+          status: rawStatus === "DELIVERED" ? "Completed" : rawStatus === "PLACED" ? "Pending" : rawStatus.charAt(0) + rawStatus.slice(1).toLowerCase()
+        }
+      },
+      { new: true, runValidators: false }
+    );
+
+    res.json(updated);
   } catch (error) { next(error); }
 });
 
