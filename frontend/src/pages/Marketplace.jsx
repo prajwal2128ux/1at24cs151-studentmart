@@ -149,7 +149,7 @@ export function ProductCard({ product }) {
 
   return (
     <article className="product-card">
-      <div className="product-image-wrap">
+      <Link to={`/shop/products/${product._id}`} className="product-image-wrap">
         {imageSrc && !imageError ? (
           <img
             src={imageSrc}
@@ -174,12 +174,12 @@ export function ProductCard({ product }) {
         }`}>
           {stock > 0 ? `${stock} in stock` : "Sold out"}
         </span>
-      </div>
+      </Link>
 
       <div className="product-card-content">
         <div className="product-meta-row">
           <span className="product-category">
-            <Tag size={11} /> {product.category}
+            {product.category}
           </span>
           {stock > 0 && stock <= 3 && (
             <span className="stock-alert-chip">
@@ -188,7 +188,9 @@ export function ProductCard({ product }) {
           )}
         </div>
 
-        <h3 title={title}>{title}</h3>
+        <Link to={`/shop/products/${product._id}`} className="product-title-link">
+          <h3 title={title}>{title}</h3>
+        </Link>
 
         <p className="product-description">
           {description}

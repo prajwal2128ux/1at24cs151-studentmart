@@ -165,7 +165,7 @@ export default function ProductForm({ editing = false }) {
                     }
                     alt="Current product listing"
                   />
-                  <small style={{ display: "block", color: "#64748b", marginTop: "4px" }}>
+                  <small style={{ display: "block", color: "var(--text-muted)", marginTop: "4px" }}>
                     Current listing image
                   </small>
                 </div>

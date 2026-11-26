@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Minus, Plus, Trash2, ArrowLeft, ShoppingCart, Package, ShieldCheck, MapPin, Truck } from "lucide-react";
+import {
+  Minus, Plus, Trash2, ArrowLeft, ShoppingCart, Package,
+  ShieldCheck, MapPin, Truck, Loader2, CheckCircle2, AlertCircle, ExternalLink
+} from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import api, { API_BASE } from "../api";
@@ -173,8 +176,131 @@ export function CheckoutPage() {
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locationStatus, setLocationStatus] = useState(null);
+  const [detectedCoords, setDetectedCoords] = useState(null);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
 
-  const update = e => setAddress({ ...address, [e.target.name]: e.target.value });
+  const update = e => setAddress(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const detectCurrentLocation = () => {
+    setLocationStatus(null);
+    setDetectedCoords(null);
+    setLocationConfirmed(false);
+    if (!navigator.geolocation) {
+      setLocationStatus({
+        type: "error",
+        message: "Geolocation is not supported by your browser. Please enter your address manually."
+      });
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setDetectedCoords({ lat: latitude, lng: longitude });
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
+              latitude
+            )}&lon=${encodeURIComponent(longitude)}&addressdetails=1&accept-language=en`
+          );
+          if (!response.ok) {
+            throw new Error(`Geocoding service returned status ${response.status}`);
+          }
+
+          const data = await response.json();
+          const addr = data?.address || {};
+
+          const buildingOrPlace =
+            addr.amenity || addr.building || addr.university || addr.college || "";
+          const streetPart = [
+            addr.house_number,
+            addr.road || addr.pedestrian || addr.footway || addr.path
+          ]
+            .filter(Boolean)
+            .join(" ");
+          const areaPart =
+            addr.neighbourhood ||
+            addr.suburb ||
+            addr.residential ||
+            addr.quarter ||
+            addr.city_district ||
+            addr.hamlet ||
+            "";
+
+          const uniqueParts = [];
+          for (const part of [buildingOrPlace, streetPart, areaPart]) {
+            const trimmed = String(part || "").trim();
+            if (trimmed && !uniqueParts.includes(trimmed)) uniqueParts.push(trimmed);
+          }
+
+          let detectedLine = uniqueParts.join(", ");
+          if (!detectedLine && data?.display_name) {
+            detectedLine = data.display_name.split(",").slice(0, 3).join(",").trim();
+          }
+          detectedLine = detectedLine.slice(0, 200);
+
+          const detectedCity = String(
+            addr.city ||
+              addr.town ||
+              addr.village ||
+              addr.municipality ||
+              addr.state_district ||
+              addr.county ||
+              ""
+          ).slice(0, 80);
+
+          const detectedState = String(addr.state || addr.region || "").slice(0, 80);
+          const detectedPincode = String(addr.postcode || "").trim().slice(0, 80);
+
+          if (!detectedLine && !detectedCity && !detectedState && !detectedPincode) {
+            setLocationStatus({
+              type: "error",
+              message: "Could not resolve an address for your current coordinates. Please enter it manually."
+            });
+            return;
+          }
+
+          setAddress(prev => ({
+            ...prev,
+            addressLine: detectedLine || prev.addressLine,
+            city: detectedCity || prev.city,
+            state: detectedState || prev.state,
+            pincode: detectedPincode || prev.pincode
+          }));
+
+          setLocationStatus({
+            type: "success",
+            message: detectedPincode
+              ? "Location detected and address fields filled. You can edit any field below."
+              : "Location detected and address filled. Please enter or verify your PIN code."
+          });
+        } catch {
+          setLocationStatus({
+            type: "error",
+            message: "Unable to fetch address details from OpenStreetMap right now. Please enter your address manually."
+          });
+        } finally {
+          setLocating(false);
+        }
+      },
+      (geoError) => {
+        const messages = {
+          1: "Location permission denied. Allow location access in your browser settings or enter your address manually.",
+          2: "Your current location is unavailable. Please check device GPS/network or enter your address manually.",
+          3: "Location request timed out. Please try again or enter your address manually."
+        };
+        setLocationStatus({
+          type: "error",
+          message: messages[geoError?.code] || "Unable to detect your location. Please enter your address manually."
+        });
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   const submit = async e => {
     e.preventDefault();
@@ -210,15 +336,75 @@ export function CheckoutPage() {
 
       <form className="product-form" onSubmit={submit}>
         <section className="form-section">
-          <div className="form-section-title">
-            <div className="form-icon">
-              <MapPin size={22} />
+          <div className="form-section-title form-section-title-split">
+            <div className="form-section-title-left">
+              <div className="form-icon">
+                <MapPin size={22} />
+              </div>
+              <div>
+                <h2>Handover & Shipping Address</h2>
+                <p>Where you will meet the peer seller or receive the items.</p>
+              </div>
             </div>
-            <div>
-              <h2>Handover & Shipping Address</h2>
-              <p>Where you will meet the peer seller or receive the items.</p>
-            </div>
+
+            <button
+              type="button"
+              className="location-detect-btn"
+              onClick={detectCurrentLocation}
+              disabled={locating}
+            >
+              {locating ? (
+                <>
+                  <Loader2 size={15} className="spin-icon" />
+                  <span>Detecting location...</span>
+                </>
+              ) : (
+                <span>Use My Current Location 📍</span>
+              )}
+            </button>
           </div>
+
+          {(locationStatus || detectedCoords) && (
+            <div
+              className={`location-status-banner ${locationStatus?.type || "success"}`}
+              role={locationStatus?.type === "error" ? "alert" : "status"}
+            >
+              <div className="location-status-message">
+                {locationStatus?.type === "error" ? (
+                  <AlertCircle size={16} />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )}
+                <span>
+                  {locationConfirmed
+                    ? "Delivery location confirmed. You can still adjust any address field below."
+                    : locationStatus?.message}
+                </span>
+              </div>
+
+              {detectedCoords && (
+                <div className="location-status-actions">
+                  <a
+                    href={`https://www.google.com/maps?q=${detectedCoords.lat},${detectedCoords.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="location-map-link"
+                  >
+                    <ExternalLink size={14} />
+                    <span>View Location on Map</span>
+                  </a>
+                  <button
+                    type="button"
+                    className={`location-confirm-btn ${locationConfirmed ? "confirmed" : ""}`}
+                    onClick={() => setLocationConfirmed(true)}
+                    disabled={locationConfirmed}
+                  >
+                    {locationConfirmed ? "Confirmed ✓" : "Confirm Location"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="form-grid">
             {[

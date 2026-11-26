@@ -65,6 +65,7 @@ export default function StoreLayout() {
     const path = location.pathname;
     if (path === "/shop") return "Student Marketplace";
     if (path === "/shop/products") return "Explore Catalog";
+    if (path.startsWith("/shop/products/")) return "Product Details";
     if (path === "/shop/cart") return "Shopping Cart";
     if (path === "/shop/checkout") return "Checkout";
     if (path === "/shop/orders") return "My Orders";
