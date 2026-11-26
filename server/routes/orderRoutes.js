@@ -46,6 +46,10 @@ router.post("/", protect, async (req, res, next) => {
       });
     }
 
+    const now = new Date();
+    const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const invRand = Math.random().toString(36).slice(2, 8).toUpperCase();
+
     const order = await Order.create({
       user: req.user._id,
       customer: req.user._id,
@@ -53,6 +57,7 @@ router.post("/", protect, async (req, res, next) => {
       customerEmail: req.user.email || "",
       customerPhone: shippingAddress.phone || "",
       orderId: `SM-${Math.floor(1000 + Math.random() * 9000)}`,
+      invoiceNumber: `INV-${ym}-${invRand}`,
       items: orderItems,
       shippingAddress,
       paymentMethod: "Campus Cash on Delivery (COD)",

@@ -7,7 +7,9 @@ export async function protect(req, res, next) {
     if (!token) return res.status(401).json({ message: "Please log in to continue." });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("name email role");
+    const user = await User.findById(decoded.id).select(
+      "name email role phone avatar department campusAddress bio createdAt"
+    );
     if (!user) return res.status(401).json({ message: "Account no longer exists." });
 
     req.user = user;

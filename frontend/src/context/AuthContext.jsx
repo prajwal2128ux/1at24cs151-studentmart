@@ -34,12 +34,23 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const updateProfile = async (payload) => {
+    const { data } = await api.put("/auth/profile", payload);
+    setUser(data.user);
+    return data;
+  };
+
+  const changePassword = async (payload) => {
+    const { data } = await api.put("/auth/password", payload);
+    return data;
+  };
+
   const logout = async () => {
     try { await api.post("/auth/logout"); } finally { setUser(null); }
   };
 
   return (
-    <AuthContext.Provider value={{ user, authLoading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, authLoading, login, register, updateProfile, changePassword, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

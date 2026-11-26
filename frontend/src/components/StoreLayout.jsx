@@ -7,6 +7,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { API_BASE } from "../api";
+
+function getAvatarUrl(avatar) {
+  if (!avatar || typeof avatar !== "string") return "";
+  if (avatar.startsWith("data:") || avatar.startsWith("http") || avatar.startsWith("blob:")) return avatar;
+  return `${API_BASE}/${avatar.replace(/^\/+/, "")}`;
+}
 
 export default function StoreLayout() {
   const { user, logout } = useAuth();
@@ -154,7 +161,16 @@ export default function StoreLayout() {
         <div className="sidebar-footer">
           <NavLink to="/profile" className="user-profile-tile" onClick={() => setSidebarOpen(false)}>
             <div className="user-avatar-badge">
-              {user?.name?.[0]?.toUpperCase() || "U"}
+              {user?.avatar ? (
+                <img
+                  src={getAvatarUrl(user.avatar)}
+                  alt={user.name}
+                  className="avatar-img-cover"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              ) : (
+                user?.name?.[0]?.toUpperCase() || "U"
+              )}
             </div>
             <div className="user-text-meta">
               <strong className="user-full-name">{user?.name || "Student"}</strong>
@@ -206,7 +222,16 @@ export default function StoreLayout() {
 
             <NavLink to="/profile" className="topbar-user-chip" title="My Account">
               <div className="chip-avatar">
-                {user?.name?.[0]?.toUpperCase() || "U"}
+                {user?.avatar ? (
+                  <img
+                    src={getAvatarUrl(user.avatar)}
+                    alt={user.name}
+                    className="avatar-img-cover"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                ) : (
+                  user?.name?.[0]?.toUpperCase() || "U"
+                )}
               </div>
               <span className="chip-name">{user?.name}</span>
             </NavLink>

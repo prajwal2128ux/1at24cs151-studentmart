@@ -218,6 +218,25 @@
   letter-spacing: 0.04em;
 }
 
+.settings-profile-link {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: var(--duration-fast);
+}
+
+.settings-profile-link:hover {
+  background: var(--color-1);
+  border-color: var(--color-1);
+  color: var(--color-7);
+}
+
 /* Buttons */
 .settings-save-btn,
 .settings-reset-btn {

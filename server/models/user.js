@@ -6,6 +6,11 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true, minlength: 8, select: false },
   role: { type: String, enum: ["user", "admin"], default: "user" },
+  phone: { type: String, default: "", trim: true, maxlength: 20 },
+  avatar: { type: String, default: "" },
+  department: { type: String, default: "", trim: true, maxlength: 100 },
+  campusAddress: { type: String, default: "", trim: true, maxlength: 200 },
+  bio: { type: String, default: "", trim: true, maxlength: 240 },
 }, { timestamps: true });
 
 userSchema.pre("save", async function () {

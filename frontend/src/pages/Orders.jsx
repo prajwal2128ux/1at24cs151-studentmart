@@ -1,12 +1,31 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { ShoppingBag, Package, Calendar, Clock, ArrowRight, ShieldCheck } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import {
+  ShoppingBag,
+  Package,
+  Calendar,
+  ArrowRight,
+  FileText,
+  Download,
+  CheckCircle2,
+  MapPin
+} from "lucide-react";
 import api from "../api";
+import { useAuth } from "../context/AuthContext";
+import OrderInvoiceModal from "../components/OrderInvoiceModal";
+import { buildInvoiceData, downloadInvoicePdf, getInvoiceNumber } from "../utils/invoice";
 
 export function MyOrders() {
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
+
+  const placedId = searchParams.get("placed");
+  const statePlacedOrder = location.state?.placedOrder || null;
 
   useEffect(() => {
     api.get("/orders/mine")
@@ -14,6 +33,19 @@ export function MyOrders() {
       .catch(e => setError(e.response?.data?.message || "Unable to load orders."))
       .finally(() => setLoading(false));
   }, []);
+
+  const placedOrder = useMemo(() => {
+    if (!placedId) return null;
+    const fromList = orders.find(o => o._id === placedId);
+    if (fromList) return fromList;
+    if (statePlacedOrder && statePlacedOrder._id === placedId) return statePlacedOrder;
+    return null;
+  }, [placedId, orders, statePlacedOrder]);
+
+  const placedInvoice = useMemo(
+    () => (placedOrder ? buildInvoiceData(placedOrder, user) : null),
+    [placedOrder, user]
+  );
 
   const formatDate = date => {
     try {
@@ -35,12 +67,71 @@ export function MyOrders() {
         <div>
           <span className="page-eyebrow">PURCHASE HISTORY</span>
           <h1>My Orders</h1>
-          <p>Track your campus marketplace orders and delivery status.</p>
+          <p>Track your campus marketplace orders, view receipts, and download invoices.</p>
         </div>
         <Link className="primary-action" to="/shop/products">
           <ShoppingBag size={17} /> Continue Shopping
         </Link>
       </div>
+
+      {/* Order Confirmation Card after successful checkout */}
+      {placedOrder && placedInvoice && (
+        <section className="order-confirmation-card" aria-label="Order Confirmation">
+          <div className="confirmation-head">
+            <div className="confirmation-icon-wrap">
+              <CheckCircle2 size={26} />
+            </div>
+            <div>
+              <span className="confirmation-eyebrow">ORDER CONFIRMED</span>
+              <h2>Thank you, {placedInvoice.customerName}. Your order has been placed.</h2>
+              <p>
+                Order <strong>{placedInvoice.orderRef}</strong> · Invoice{" "}
+                <strong>{placedInvoice.invoiceNumber}</strong> · {placedInvoice.paymentMethod}
+              </p>
+            </div>
+          </div>
+
+          <div className="confirmation-summary-grid">
+            <div className="confirmation-meta-item">
+              <small>Delivery Address</small>
+              <span>
+                <MapPin size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px" }} />
+                {[
+                  placedInvoice.shippingAddress.addressLine,
+                  placedInvoice.shippingAddress.city,
+                  placedInvoice.shippingAddress.state,
+                  placedInvoice.shippingAddress.pincode
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </span>
+            </div>
+            <div className="confirmation-meta-item">
+              <small>Order Total (COD)</small>
+              <strong>₹{placedInvoice.totalAmount.toLocaleString("en-IN")}</strong>
+            </div>
+          </div>
+
+          <div className="order-invoice-actions">
+            <button
+              type="button"
+              className="invoice-btn primary"
+              onClick={() => setSelectedInvoiceOrder(placedOrder)}
+            >
+              <FileText size={15} />
+              <span>View Invoice</span>
+            </button>
+            <button
+              type="button"
+              className="invoice-btn secondary"
+              onClick={() => downloadInvoicePdf(placedOrder, user)}
+            >
+              <Download size={15} />
+              <span>Download Invoice (PDF)</span>
+            </button>
+          </div>
+        </section>
+      )}
 
       {error && <div className="form-error">{error}</div>}
 
@@ -59,36 +150,71 @@ export function MyOrders() {
         <div className="order-list">
           {orders.map(o => {
             const st = (o.orderStatus || o.status || "PLACED").toUpperCase();
+            const invoiceNo = getInvoiceNumber(o);
+            const orderRef = o.orderId || `#${o._id.slice(-8).toUpperCase()}`;
             return (
               <article className="order-card" key={o._id}>
                 <div className="order-card-head">
-                  <strong>Order #{o._id.slice(-8).toUpperCase()}</strong>
+                  <div>
+                    <strong>Order {orderRef}</strong>
+                    <span className="order-invoice-ref">Invoice {invoiceNo}</span>
+                  </div>
                   <span className={`role-pill status-${st.toLowerCase()}`}>
                     {st}
                   </span>
                 </div>
 
-              <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Calendar size={13} /> {formatDate(o.createdAt)}
-              </p>
+                <p className="order-meta-line">
+                  <Calendar size={13} /> {formatDate(o.createdAt)} ·{" "}
+                  <span>{o.paymentMethod || "Cash on Delivery"}</span>
+                </p>
 
-              <div className="order-items-box">
-                {o.items.map((i, n) => (
-                  <div className="order-line" key={n}>
-                    <span>{i.name || i.title} × {i.quantity}</span>
-                    <strong>₹{(i.price * i.quantity).toLocaleString("en-IN")}</strong>
+                <div className="order-items-box">
+                  {o.items.map((i, n) => (
+                    <div className="order-line" key={n}>
+                      <span>{i.name || i.title} × {i.quantity}</span>
+                      <strong>₹{(i.price * i.quantity).toLocaleString("en-IN")}</strong>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="order-card-foot">
+                  <div>
+                    <small className="order-foot-label">Payment on Delivery</small>
+                    <strong>₹{o.totalAmount.toLocaleString("en-IN")}</strong>
                   </div>
-                ))}
-              </div>
 
-              <div className="summary-total" style={{ marginTop: "12px", borderTop: "1px solid var(--border-light)" }}>
-                <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Payment on Delivery</span>
-                <strong>₹{o.totalAmount.toLocaleString("en-IN")}</strong>
-              </div>
-            </article>
-          );
-        })}
+                  <div className="order-invoice-actions">
+                    <button
+                      type="button"
+                      className="invoice-btn secondary"
+                      onClick={() => setSelectedInvoiceOrder(o)}
+                    >
+                      <FileText size={14} />
+                      <span>View Invoice</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="invoice-btn primary"
+                      onClick={() => downloadInvoicePdf(o, user)}
+                    >
+                      <Download size={14} />
+                      <span>Download Invoice (PDF)</span>
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
+      )}
+
+      {selectedInvoiceOrder && (
+        <OrderInvoiceModal
+          order={selectedInvoiceOrder}
+          user={user}
+          onClose={() => setSelectedInvoiceOrder(null)}
+        />
       )}
     </div>
   );
@@ -171,7 +297,7 @@ export function AdminOrders() {
                   </span>
                 </div>
 
-                <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <p className="order-meta-line">
                   {customerEmail && <span>{customerEmail} • </span>}
                   <span>{formatDate(o.createdAt)}</span>
                 </p>
@@ -187,13 +313,13 @@ export function AdminOrders() {
 
                 <div className="order-card-foot">
                   <div>
-                    <small style={{ display: "block", color: "var(--text-muted)", fontSize: "11px" }}>Total Amount</small>
+                    <small className="order-foot-label">Total Amount</small>
                     <strong>₹{o.totalAmount.toLocaleString("en-IN")} (COD)</strong>
                   </div>
 
-                  <select 
-                    value={currentStatus} 
-                    onChange={e => update(o._id, e.target.value)} 
+                  <select
+                    value={currentStatus}
+                    onChange={e => update(o._id, e.target.value)}
                     disabled={["DELIVERED", "CANCELLED"].includes(currentStatus)}
                   >
                     <option value="PLACED">Placed</option>

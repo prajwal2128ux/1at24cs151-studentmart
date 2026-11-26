@@ -11,6 +11,15 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: () => `SM-${Date.now().toString().slice(-4)}${Math.floor(100 + Math.random() * 900)}`
   },
+  invoiceNumber: {
+    type: String,
+    default: () => {
+      const now = new Date();
+      const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+      return `INV-${ym}-${rand}`;
+    }
+  },
   deliveryLocation: { type: String, default: "" },
   deliveryNotes: { type: String, default: "" },
   items: [{

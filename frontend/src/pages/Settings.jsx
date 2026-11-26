@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Store,
   User,
@@ -295,6 +296,10 @@ export default function Settings() {
             <strong>Administrator Account</strong>
             <p>Access to administration pages is protected.</p>
           </div>
+
+          <Link to="/profile" className="settings-profile-link">
+            Edit Admin Profile
+          </Link>
 
           <span className="security-status">
             Protected

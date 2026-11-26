@@ -313,7 +313,7 @@ export function CheckoutPage() {
         shippingAddress: address
       });
       clearCart();
-      navigate(`/shop/orders?placed=${data._id}`);
+      navigate(`/shop/orders?placed=${data._id}`, { state: { placedOrder: data } });
     } catch (err) {
       setError(err.response?.data?.message || "Unable to place order.");
     } finally {
